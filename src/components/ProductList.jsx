@@ -1,111 +1,131 @@
 import React, { useEffect, useState } from 'react';
+import { Edit, Trash2, Eye, ShoppingCart, MessageCircle } from 'lucide-react';
 import { getShopProducts } from '../services/db';
-import { getImageUrl } from '../services/storage';
-import { useLogger } from '../context/LoggerContext';
-import { Edit, Trash2, Eye, ShoppingCart } from 'lucide-react';
 
-const ProductList = ({ shopId, refreshTrigger, isOwner = false, onBuyClick }) => {
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const { addLog } = useLogger();
+const ProductList = ({ products: initialProducts, shopId, isOwner, onBuyClick, refreshTrigger }) => {
+  const [products, setProducts] = useState(initialProducts || []);
+  const [loading, setLoading] = useState(!initialProducts && !!shopId);
 
   useEffect(() => {
-    const fetchProducts = async () => {
-      if (!shopId) return;
-      
-      setLoading(true);
-      try {
-        const productsData = await getShopProducts(shopId);
-        
-        // Resolver URLs de imágenes para cada producto
-        const productsWithImages = await Promise.all(productsData.map(async (p) => {
-          if (p.images && p.images.length > 0) {
-            // Obtener URL firmada para la primera imagen
-            const mainImageUrl = await getImageUrl(p.images[0]);
-            return { ...p, mainImageUrl };
-          }
-          return p;
-        }));
+    // If products are passed directly, use them
+    if (initialProducts) {
+      setProducts(initialProducts);
+      setLoading(false);
+      return;
+    }
 
-        setProducts(productsWithImages);
-      } catch (error) {
-        addLog(`Error cargando productos: ${error.message}`, 'error');
-      } finally {
-        setLoading(false);
-      }
-    };
+    // Otherwise, if shopId is provided, fetch them
+    if (shopId) {
+      const loadProducts = async () => {
+        setLoading(true);
+        try {
+          const data = await getShopProducts(shopId);
+          setProducts(data);
+        } catch (error) {
+          console.error("Error loading products:", error);
+        } finally {
+          setLoading(false);
+        }
+      };
+      loadProducts();
+    }
+  }, [shopId, initialProducts, refreshTrigger]);
 
-    fetchProducts();
-  }, [shopId, refreshTrigger, addLog]);
-
-  if (loading) return <div className="text-center p-4">Cargando productos...</div>;
-
-  if (products.length === 0) {
+  if (loading) {
     return (
-      <div className="text-center p-8 bg-gray-50 rounded-lg border border-dashed border-gray-300">
-        <p className="text-gray-500">No hay productos disponibles en este momento.</p>
+      <div className="flex justify-center items-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (!products || products.length === 0) {
+    return (
+      <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+        <p className="text-gray-500">No hay productos disponibles.</p>
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
-      {products.map(product => (
-        <div key={product.id} className="bg-white border rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow flex flex-col">
-          <div className="h-48 bg-gray-200 relative">
-            {product.mainImageUrl ? (
-              <img 
-                src={product.mainImageUrl} 
-                alt={product.title} 
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="flex items-center justify-center h-full text-gray-400">
-                Sin imagen
-              </div>
-            )}
-            <div className="absolute top-2 right-2 bg-white px-2 py-1 rounded text-xs font-bold shadow">
-              ${product.price}
-            </div>
-          </div>
-          
-          <div className="p-4 flex-grow flex flex-col">
-            <h3 className="font-bold text-lg truncate">{product.title}</h3>
-            <p className="text-gray-600 text-sm line-clamp-2 mb-3 flex-grow">{product.description}</p>
-            
-            <div className="flex justify-between items-center pt-2 border-t mt-auto">
-              <span className={`text-xs px-2 py-1 rounded-full ${
-                product.status === 'available' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-              }`}>
-                {product.status === 'available' ? 'Disponible' : product.status}
-              </span>
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      {products.map((product) => {
+        // Handle image source: support both legacy imageUrl and new images array
+        const displayImage = product.images && product.images.length > 0 
+          ? product.images[0] 
+          : product.imageUrl;
+
+        return (
+          <div key={product.id} className="group bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden border border-gray-100 flex flex-col">
+            {/* Image Container */}
+            <div className="relative aspect-square bg-gray-100 overflow-hidden">
+              {displayImage ? (
+                <img 
+                  src={displayImage} 
+                  alt={product.title} 
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-gray-400 bg-gray-50">
+                  <span className="text-4xl">📷</span>
+                </div>
+              )}
               
-              <div className="flex gap-2">
+              {/* Status Badge */}
+              <div className="absolute top-2 right-2">
+                <span className={`px-2 py-1 rounded-full text-xs font-medium shadow-sm backdrop-blur-md ${
+                  product.status === 'available' 
+                    ? 'bg-green-100/90 text-green-700' 
+                    : 'bg-gray-100/90 text-gray-700'
+                }`}>
+                  {product.status === 'available' ? 'Disponible' : product.status}
+                </span>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="p-4 flex flex-col flex-grow">
+              <div className="mb-2">
+                <h3 className="font-semibold text-gray-900 text-lg leading-tight line-clamp-1" title={product.title}>
+                  {product.title}
+                </h3>
+                <p className="text-blue-600 font-bold text-xl mt-1">
+                  ${parseFloat(product.price).toLocaleString()}
+                </p>
+              </div>
+
+              <p className="text-gray-500 text-sm line-clamp-2 mb-4 flex-grow">
+                {product.description}
+              </p>
+
+              {/* Actions */}
+              <div className="mt-auto pt-3 border-t border-gray-50">
                 {isOwner ? (
-                  <>
-                    <button className="p-1 text-gray-500 hover:text-blue-600" title="Ver detalle">
-                      <Eye size={18} />
+                  <div className="flex justify-between items-center">
+                    <button className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors" title="Ver detalle">
+                      <Eye size={20} />
                     </button>
-                    <button className="p-1 text-gray-500 hover:text-green-600" title="Editar">
-                      <Edit size={18} />
+                    <button className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-full transition-colors" title="Editar">
+                      <Edit size={20} />
                     </button>
-                    <button className="p-1 text-gray-500 hover:text-red-600" title="Eliminar">
-                      <Trash2 size={18} />
+                    <button className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors" title="Eliminar">
+                      <Trash2 size={20} />
                     </button>
-                  </>
+                  </div>
                 ) : (
                   <button 
                     onClick={() => onBuyClick && onBuyClick(product)}
-                    className="bg-blue-600 text-white px-3 py-1 rounded text-sm flex items-center gap-1 hover:bg-blue-700"
+                    className="w-full bg-green-600 text-white py-2.5 px-4 rounded-lg text-sm font-medium flex items-center justify-center gap-2 hover:bg-green-700 active:bg-green-800 transition-colors shadow-sm"
                   >
-                    <ShoppingCart size={16} /> Comprar
+                    <MessageCircle size={18} />
+                    Comprar por WhatsApp
                   </button>
                 )}
               </div>
             </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 };
