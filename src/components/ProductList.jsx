@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { getShopProducts } from '../services/db';
+import { getShopProducts, updateProductStatus } from '../services/db';
 import { getImageUrl } from '../services/storage';
-import { Trash2, Edit, ShoppingCart, ExternalLink, Copy, Check, Wallet, MessageCircle, HelpCircle } from 'lucide-react';
+import { Trash2, Edit, ShoppingCart, ExternalLink, Copy, Check, Wallet, MessageCircle, HelpCircle, Archive, User, RotateCcw } from 'lucide-react';
 
 const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopData }) => {
   const [products, setProducts] = useState([]);
@@ -37,7 +37,14 @@ const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopDa
           return { ...p, finalImageUrl: finalImage };
         }));
 
-        setProducts(productsWithImages);
+        // Ordenar: Primero los disponibles, al final los vendidos
+        const sortedProducts = productsWithImages.sort((a, b) => {
+            if (a.status === 'sold' && b.status !== 'sold') return 1;
+            if (a.status !== 'sold' && b.status === 'sold') return -1;
+            return 0;
+        });
+
+        setProducts(sortedProducts);
       } catch (error) {
         console.error("Error fetching products:", error);
       } finally {
@@ -47,6 +54,55 @@ const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopDa
 
     fetchProducts();
   }, [shopId, shopData, refreshTrigger]);
+
+  const handleMarkAsSold = async (product) => {
+    const buyerInfo = window.prompt(
+      `Vas a marcar "${product.title}" como VENDIDO.\n\n(Opcional) Escribe el nombre del comprador o nota para recordar:`, 
+      ""
+    );
+
+    if (buyerInfo === null) return; // Cancelado
+
+    try {
+      await updateProductStatus(product.id, 'sold', buyerInfo);
+      
+      // Actualizamos estado local
+      setProducts(prev => {
+        const updated = prev.map(p => 
+          p.id === product.id ? { ...p, status: 'sold', buyerInfo: buyerInfo } : p
+        );
+        // Re-ordenar
+        return updated.sort((a, b) => {
+            if (a.status === 'sold' && b.status !== 'sold') return 1;
+            if (a.status !== 'sold' && b.status === 'sold') return -1;
+            return 0;
+        });
+      });
+    } catch (error) {
+      alert("Error al actualizar estado: " + error.message);
+    }
+  };
+
+  const handleMarkAsAvailable = async (product) => {
+    if (!window.confirm(`¿Volver a poner "${product.title}" como DISPONIBLE?`)) return;
+
+    try {
+      await updateProductStatus(product.id, 'available', "");
+      
+      setProducts(prev => {
+        const updated = prev.map(p => 
+          p.id === product.id ? { ...p, status: 'available', buyerInfo: "" } : p
+        );
+        return updated.sort((a, b) => {
+            if (a.status === 'sold' && b.status !== 'sold') return 1;
+            if (a.status !== 'sold' && b.status === 'sold') return -1;
+            return 0;
+        });
+      });
+    } catch (error) {
+      alert("Error al actualizar estado: " + error.message);
+    }
+  };
 
   const openWhatsApp = (product, type = 'inquiry') => {
     if (!shopData?.whatsapp) return;
@@ -86,9 +142,14 @@ const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopDa
     }
   };
 
+  // Filtrar productos: El dueño ve todo (vendidos en gris), el público solo ve disponibles
+  const visibleProducts = isOwner 
+    ? products 
+    : products.filter(p => p.status !== 'sold');
+
   if (loading) return <div className="text-center py-12 text-gray-500">Cargando catálogo...</div>;
 
-  if (!products || products.length === 0) {
+  if (!visibleProducts || visibleProducts.length === 0) {
     return (
       <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
         <p className="text-gray-500">No hay productos disponibles.</p>
@@ -99,22 +160,23 @@ const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopDa
   return (
     <>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {products.map((product) => (
-          <div key={product.id} className="bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden border border-gray-100 flex flex-col group">
+        {visibleProducts.map((product) => (
+          <div key={product.id} className={`bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden border border-gray-100 flex flex-col group ${product.status === 'sold' ? 'opacity-80 bg-gray-50' : ''}`}>
             <div className="relative aspect-square overflow-hidden bg-gray-100">
               {product.finalImageUrl ? (
                 <img 
                   src={product.finalImageUrl} 
                   alt={product.title} 
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  className={`w-full h-full object-cover transition-transform duration-500 ${product.status === 'sold' ? 'grayscale' : 'group-hover:scale-105'}`}
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-gray-400 bg-gray-50">
                   <span className="text-4xl">📷</span>
                 </div>
               )}
-              <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full text-sm font-bold text-gray-800 shadow-sm">
-                ${Number(product.price).toLocaleString()}
+              
+              <div className={`absolute top-2 right-2 px-2 py-1 rounded-full text-sm font-bold shadow-sm ${product.status === 'sold' ? 'bg-red-600 text-white' : 'bg-white/90 backdrop-blur-sm text-gray-800'}`}>
+                {product.status === 'sold' ? 'VENDIDO' : `$${Number(product.price).toLocaleString()}`}
               </div>
             </div>
             
@@ -122,41 +184,78 @@ const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopDa
               <h3 className="font-semibold text-gray-800 mb-1 line-clamp-1" title={product.title}>{product.title}</h3>
               <p className="text-sm text-gray-500 line-clamp-2 mb-4 flex-grow">{product.description}</p>
               
+              {/* INFO DE VENTA PARA EL DUEÑO */}
+              {isOwner && product.status === 'sold' && (
+                <div className="mb-3 p-2 bg-yellow-50 border border-yellow-100 rounded text-xs text-yellow-800 flex items-start gap-2">
+                    <User size={14} className="mt-0.5 flex-shrink-0" />
+                    <span>
+                        <strong>Comprador:</strong> {product.buyerInfo || "Sin datos"}
+                    </span>
+                </div>
+              )}
+
               <div className="mt-auto space-y-2">
                 {isOwner ? (
-                  <div className="flex gap-2">
-                    <button onClick={() => onEdit && onEdit(product)} className="flex-1 bg-blue-50 text-blue-600 py-2 rounded-lg text-sm font-medium hover:bg-blue-100 transition-colors flex items-center justify-center gap-1">
-                      <Edit size={16} /> Editar
-                    </button>
-                    <button onClick={() => onDelete && onDelete(product.id)} className="flex-1 bg-red-50 text-red-600 py-2 rounded-lg text-sm font-medium hover:bg-red-100 transition-colors flex items-center justify-center gap-1">
-                      <Trash2 size={16} /> Borrar
-                    </button>
+                  <div className="flex flex-col gap-2">
+                    <div className="flex gap-2">
+                        <button onClick={() => onEdit && onEdit(product)} className="flex-1 bg-blue-50 text-blue-600 py-2 rounded-lg text-sm font-medium hover:bg-blue-100 transition-colors flex items-center justify-center gap-1">
+                        <Edit size={16} /> Editar
+                        </button>
+                        <button onClick={() => onDelete && onDelete(product.id)} className="flex-1 bg-red-50 text-red-600 py-2 rounded-lg text-sm font-medium hover:bg-red-100 transition-colors flex items-center justify-center gap-1">
+                        <Trash2 size={16} /> Borrar
+                        </button>
+                    </div>
+                    
+                    {/* BOTÓN DE ESTADO */}
+                    {product.status !== 'sold' ? (
+                        <button 
+                            onClick={() => handleMarkAsSold(product)}
+                            className="w-full bg-gray-800 text-white py-2 rounded-lg text-sm font-medium hover:bg-gray-900 transition-colors flex items-center justify-center gap-2"
+                        >
+                            <Archive size={16} /> Marcar como Vendido
+                        </button>
+                    ) : (
+                        <button 
+                            onClick={() => handleMarkAsAvailable(product)}
+                            className="w-full bg-white text-gray-600 border border-gray-300 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
+                        >
+                            <RotateCcw size={16} /> Marcar Disponible
+                        </button>
+                    )}
                   </div>
                 ) : (
                   <>
-                    {/* BOTÓN COMPRAR (AMARILLO - Estilo Mercado Pago/Libre) */}
-                    <button
-                      onClick={() => {
-                        if (shopData?.alias || shopData?.cbu) {
-                          setSelectedProduct(product);
-                        } else {
-                          openWhatsApp(product, 'buy_direct');
-                        }
-                      }}
-                      className="w-full bg-yellow-400 text-gray-900 py-2.5 px-4 rounded-lg hover:bg-yellow-500 transition-colors flex items-center justify-center gap-2 font-bold shadow-sm active:scale-95 transform duration-100"
-                    >
-                      <ShoppingCart size={18} />
-                      Comprar
-                    </button>
+                    {product.status !== 'sold' ? (
+                      <>
+                        {/* BOTÓN COMPRAR (AMARILLO - Estilo Mercado Pago/Libre) */}
+                        <button
+                          onClick={() => {
+                            if (shopData?.alias || shopData?.cbu) {
+                              setSelectedProduct(product);
+                            } else {
+                              openWhatsApp(product, 'buy_direct');
+                            }
+                          }}
+                          className="w-full bg-yellow-400 text-gray-900 py-2.5 px-4 rounded-lg hover:bg-yellow-500 transition-colors flex items-center justify-center gap-2 font-bold shadow-sm active:scale-95 transform duration-100"
+                        >
+                          <ShoppingCart size={18} />
+                          Comprar
+                        </button>
 
-                    {/* BOTÓN PREGUNTAR (VERDE - Estilo WhatsApp) */}
-                    <button
-                      onClick={() => openWhatsApp(product, 'inquiry')}
-                      className="w-full bg-green-600 text-white py-2.5 px-4 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2 font-medium shadow-sm active:scale-95 transform duration-100"
-                    >
-                      <MessageCircle size={18} />
-                      Preguntar por WhatsApp
-                    </button>
+                        {/* BOTÓN PREGUNTAR (VERDE - Estilo WhatsApp) */}
+                        <button
+                          onClick={() => openWhatsApp(product, 'inquiry')}
+                          className="w-full bg-green-600 text-white py-2.5 px-4 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2 font-medium shadow-sm active:scale-95 transform duration-100"
+                        >
+                          <MessageCircle size={18} />
+                          Preguntar por WhatsApp
+                        </button>
+                      </>
+                    ) : (
+                      <div className="w-full bg-gray-100 text-gray-500 py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 font-bold cursor-not-allowed">
+                        🚫 Agotado
+                      </div>
+                    )}
                   </>
                 )}
               </div>

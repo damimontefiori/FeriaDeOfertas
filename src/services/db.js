@@ -93,10 +93,19 @@ export const getShopProducts = async (shopId) => {
   const q = query(
     collection(db, "products"), 
     where("shopId", "==", shopId),
-    where("status", "in", ["available", "pending"]) // Show available and pending
+    where("status", "in", ["available", "pending", "sold"]) // Incluimos 'sold'
   );
   const querySnapshot = await getDocs(q);
   return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+};
+
+export const updateProductStatus = async (productId, status, buyerInfo = "") => {
+  const productRef = doc(db, "products", productId);
+  await updateDoc(productRef, { 
+    status: status,
+    buyerInfo: buyerInfo,
+    soldAt: status === 'sold' ? serverTimestamp() : null
+  });
 };
 
 // --- ORDERS (Simple flow) ---
