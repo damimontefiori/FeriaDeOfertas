@@ -72,13 +72,16 @@ const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopDa
   };
 
   const openMercadoPagoApp = () => {
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const userAgent = navigator.userAgent || navigator.vendor || window.opera;
     
-    if (isMobile) {
-      // Intentamos abrir directamente la sección de transferencias CBU/Alias
-      window.location.href = "mercadopago://cbu_transfer";
+    if (/android/i.test(userAgent)) {
+      // Android: Usar Intent Scheme que es más robusto en Chrome/Android
+      window.location.href = "intent://home#Intent;scheme=mercadopago;package=com.mercadopago.wallet;end";
+    } else if (/iPad|iPhone|iPod/.test(userAgent) && !window.MSStream) {
+      // iOS: Usar Custom Scheme directo
+      window.location.href = "mercadopago://home";
     } else {
-      // En escritorio, ir a la web
+      // Desktop / Otros: Web
       window.open("https://www.mercadopago.com.ar", "_blank");
     }
   };
