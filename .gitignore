@@ -37,3 +37,5 @@ coverage
 temp_Scripts/
 
 .env
+
+test-openai-direct.js

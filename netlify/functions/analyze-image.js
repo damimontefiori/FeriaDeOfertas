@@ -7,28 +7,26 @@ export const handler = async (event) => {
   try {
     const { imageBase64 } = JSON.parse(event.body);
     
-    // --- CONFIGURACIÓN AZURE OPENAI (GPT-4o mini) ---
-    const AOAI_KEY = process.env.AZURE_OPENAI_KEY;
-    const AOAI_RESOURCE = process.env.AZURE_OPENAI_RESOURCE || "damimontefioriacc-resource";
-    const AOAI_DEPLOYMENT = process.env.AZURE_OPENAI_DEPLOYMENT || "gpt-4o-mini"; 
-    const AOAI_API_VERSION = "2024-04-01-preview";
+    // --- CONFIGURACIÓN OPENAI (Standard) ---
+    const OPENAI_KEY = process.env.OPENAI_API_KEY;
     
-    if (!AOAI_KEY) {
-      console.error("Falta la clave AZURE_OPENAI_KEY");
+    if (!OPENAI_KEY) {
+      console.error("Falta la clave OPENAI_API_KEY");
       return { statusCode: 500, body: JSON.stringify({ error: "Error de configuración del servidor (AI)" }) };
     }
 
-    const aoaiEndpoint = `https://${AOAI_RESOURCE}.cognitiveservices.azure.com/openai/deployments/${AOAI_DEPLOYMENT}/chat/completions?api-version=${AOAI_API_VERSION}`;
+    const openaiEndpoint = "https://api.openai.com/v1/chat/completions";
 
-    // --- NUEVA IMPLEMENTACIÓN: GPT-4o mini ---
+    // --- IMPLEMENTACIÓN: GPT-4o mini (OpenAI Direct) ---
     try {
-      const response = await fetch(aoaiEndpoint, {
+      const response = await fetch(openaiEndpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'api-key': AOAI_KEY
+          'Authorization': `Bearer ${OPENAI_KEY}`
         },
         body: JSON.stringify({
+          model: "gpt-4o-mini",
           messages: [
             {
               role: "system",
@@ -50,8 +48,8 @@ export const handler = async (event) => {
 
       if (!response.ok) {
         const errText = await response.text();
-        console.error("Azure OpenAI Error:", errText);
-        throw new Error(`Azure OpenAI falló: ${response.status} - ${errText}`);
+        console.error("OpenAI API Error:", errText);
+        throw new Error(`OpenAI falló: ${response.status} - ${errText}`);
       }
 
       const data = await response.json();
@@ -67,9 +65,7 @@ export const handler = async (event) => {
       };
 
     } catch (aiError) {
-      console.error("Fallo GPT-4o mini, intentando fallback a Computer Vision...", aiError);
-      // Si falla GPT-4o, podríamos caer al código antiguo, pero por ahora lanzamos el error
-      // para que el usuario sepa que debe arreglar el deployment name.
+      console.error("Fallo GPT-4o mini (OpenAI), revisa logs...", aiError);
       throw aiError;
     }
 
