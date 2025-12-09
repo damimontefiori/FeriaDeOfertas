@@ -1,149 +1,81 @@
 import React, { useEffect, useState } from 'react';
-import { Edit, Trash2, Eye, ShoppingCart, MessageCircle } from 'lucide-react';
 import { getShopProducts } from '../services/db';
 import { getImageUrl } from '../services/storage';
+import { Trash2, Edit, ShoppingCart, ExternalLink, Copy, Check, Wallet, MessageCircle, HelpCircle } from 'lucide-react';
 
-const ProductCard = ({ product, isOwner, onBuyClick }) => {
-  const [imageUrl, setImageUrl] = useState(null);
+const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopData }) => {
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  
+  // Modal State
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [copiedField, setCopiedField] = useState(null);
 
   useEffect(() => {
-    const resolveImage = async () => {
-      // Determine the source path/url
-      // Support both legacy imageUrl and new images array
-      const rawSource = product.images && product.images.length > 0 
-        ? product.images[0] 
-        : product.imageUrl;
+    const fetchProducts = async () => {
+      if (!shopId && !shopData) return; 
+      setLoading(true);
+      try {
+        const idToUse = shopId || shopData?.id;
+        const productsData = await getShopProducts(idToUse);
+        
+        const productsWithImages = await Promise.all(productsData.map(async (p) => {
+          let finalImage = null;
+          
+          // Determine the source path/url
+          const rawSource = p.images && p.images.length > 0 
+            ? p.images[0] 
+            : p.imageUrl;
 
-      if (!rawSource) {
-        setImageUrl(null);
-        return;
+          if (rawSource) {
+            if (rawSource.startsWith('http')) {
+              finalImage = rawSource;
+            } else {
+              finalImage = await getImageUrl(rawSource);
+            }
+          }
+          return { ...p, finalImageUrl: finalImage };
+        }));
+
+        setProducts(productsWithImages);
+      } catch (error) {
+        console.error("Error fetching products:", error);
+      } finally {
+        setLoading(false);
       }
-
-      // If it's already a URL (legacy or external), use it directly
-      if (rawSource.startsWith('http')) {
-        setImageUrl(rawSource);
-        return;
-      }
-
-      // Otherwise, it's an R2 key, resolve it using storage service
-      const url = await getImageUrl(rawSource);
-      setImageUrl(url);
     };
 
-    resolveImage();
-  }, [product]);
+    fetchProducts();
+  }, [shopId, shopData, refreshTrigger]);
 
-  const title = product.title || product.name || 'Sin título';
-  const price = Number(product.price || 0).toLocaleString();
-
-  return (
-    <div className="group bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden border border-gray-100 flex flex-col">
-      {/* Image Container */}
-      <div className="relative aspect-square bg-gray-100 overflow-hidden">
-        {imageUrl ? (
-          <img 
-            src={imageUrl} 
-            alt={title} 
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-gray-400 bg-gray-50">
-            <span className="text-4xl">📷</span>
-          </div>
-        )}
-        
-        {/* Status Badge */}
-        <div className="absolute top-2 right-2">
-          <span className={`px-2 py-1 rounded-full text-xs font-medium shadow-sm backdrop-blur-md ${
-            product.status === 'available' 
-              ? 'bg-green-100/90 text-green-700' 
-              : 'bg-gray-100/90 text-gray-700'
-          }`}>
-            {product.status === 'available' ? 'Disponible' : product.status}
-          </span>
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="p-4 flex flex-col flex-grow">
-        <div className="mb-2">
-          <h3 className="font-semibold text-gray-900 text-lg leading-tight line-clamp-1" title={title}>
-            {title}
-          </h3>
-          <p className="text-blue-600 font-bold text-xl mt-1">
-            ${price}
-          </p>
-        </div>
-
-        <p className="text-gray-500 text-sm line-clamp-2 mb-4 flex-grow">
-          {product.description}
-        </p>
-
-        {/* Actions */}
-        <div className="mt-auto pt-3 border-t border-gray-50">
-          {isOwner ? (
-            <div className="flex justify-between items-center">
-              <button className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors" title="Ver detalle">
-                <Eye size={20} />
-              </button>
-              <button className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-full transition-colors" title="Editar">
-                <Edit size={20} />
-              </button>
-              <button className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors" title="Eliminar">
-                <Trash2 size={20} />
-              </button>
-            </div>
-          ) : (
-            <button 
-              onClick={() => onBuyClick && onBuyClick(product)}
-              className="w-full bg-green-600 text-white py-2.5 px-4 rounded-lg text-sm font-medium flex items-center justify-center gap-2 hover:bg-green-700 active:bg-green-800 transition-colors shadow-sm"
-            >
-              <MessageCircle size={18} />
-              Comprar por WhatsApp
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const ProductList = ({ products: initialProducts, shopId, isOwner, onBuyClick, refreshTrigger }) => {
-  const [products, setProducts] = useState(initialProducts || []);
-  const [loading, setLoading] = useState(!initialProducts && !!shopId);
-
-  useEffect(() => {
-    // If products are passed directly, use them
-    if (initialProducts) {
-      setProducts(initialProducts);
-      setLoading(false);
-      return;
+  const openWhatsApp = (product, type = 'inquiry') => {
+    if (!shopData?.whatsapp) return;
+    
+    let message = '';
+    if (type === 'payment') {
+      message = `Hola! 👋 Ya realicé la transferencia por *${product.title}* ($${product.price}). Te adjunto el comprobante.`;
+    } else if (type === 'buy_direct') {
+      message = `Hola! 👋 Quiero comprar *${product.title}*. ¿Cómo coordinamos el pago y entrega?`;
+    } else {
+      message = `Hola! 👋 Tengo una consulta sobre *${product.title}*.`;
     }
+    
+    const url = `https://wa.me/${shopData.whatsapp}?text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank');
+    setSelectedProduct(null);
+  };
 
-    // Otherwise, if shopId is provided, fetch them
-    if (shopId) {
-      const loadProducts = async () => {
-        setLoading(true);
-        try {
-          const data = await getShopProducts(shopId);
-          setProducts(data);
-        } catch (error) {
-          console.error("Error loading products:", error);
-        } finally {
-          setLoading(false);
-        }
-      };
-      loadProducts();
-    }
-  }, [shopId, initialProducts, refreshTrigger]);
+  const handleCopy = (text, field) => {
+    navigator.clipboard.writeText(text);
+    setCopiedField(field);
+    setTimeout(() => setCopiedField(null), 2000);
+  };
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
+  const openMercadoPagoApp = () => {
+    window.location.href = "mercadopago://app/transfer/money";
+  };
+
+  if (loading) return <div className="text-center py-12 text-gray-500">Cargando catálogo...</div>;
 
   if (!products || products.length === 0) {
     return (
@@ -154,16 +86,159 @@ const ProductList = ({ products: initialProducts, shopId, isOwner, onBuyClick, r
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-      {products.map((product) => (
-        <ProductCard 
-          key={product.id} 
-          product={product} 
-          isOwner={isOwner} 
-          onBuyClick={onBuyClick} 
-        />
-      ))}
-    </div>
+    <>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {products.map((product) => (
+          <div key={product.id} className="bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden border border-gray-100 flex flex-col group">
+            <div className="relative aspect-square overflow-hidden bg-gray-100">
+              {product.finalImageUrl ? (
+                <img 
+                  src={product.finalImageUrl} 
+                  alt={product.title} 
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-gray-400 bg-gray-50">
+                  <span className="text-4xl">📷</span>
+                </div>
+              )}
+              <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full text-sm font-bold text-gray-800 shadow-sm">
+                ${Number(product.price).toLocaleString()}
+              </div>
+            </div>
+            
+            <div className="p-4 flex flex-col flex-grow">
+              <h3 className="font-semibold text-gray-800 mb-1 line-clamp-1" title={product.title}>{product.title}</h3>
+              <p className="text-sm text-gray-500 line-clamp-2 mb-4 flex-grow">{product.description}</p>
+              
+              <div className="mt-auto space-y-2">
+                {isOwner ? (
+                  <div className="flex gap-2">
+                    <button onClick={() => onEdit && onEdit(product)} className="flex-1 bg-blue-50 text-blue-600 py-2 rounded-lg text-sm font-medium hover:bg-blue-100 transition-colors flex items-center justify-center gap-1">
+                      <Edit size={16} /> Editar
+                    </button>
+                    <button onClick={() => onDelete && onDelete(product.id)} className="flex-1 bg-red-50 text-red-600 py-2 rounded-lg text-sm font-medium hover:bg-red-100 transition-colors flex items-center justify-center gap-1">
+                      <Trash2 size={16} /> Borrar
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    {/* BOTÓN COMPRAR (AMARILLO - Estilo Mercado Pago/Libre) */}
+                    <button
+                      onClick={() => {
+                        if (shopData?.alias || shopData?.cbu) {
+                          setSelectedProduct(product);
+                        } else {
+                          openWhatsApp(product, 'buy_direct');
+                        }
+                      }}
+                      className="w-full bg-yellow-400 text-gray-900 py-2.5 px-4 rounded-lg hover:bg-yellow-500 transition-colors flex items-center justify-center gap-2 font-bold shadow-sm active:scale-95 transform duration-100"
+                    >
+                      <ShoppingCart size={18} />
+                      Comprar
+                    </button>
+
+                    {/* BOTÓN PREGUNTAR (VERDE - Estilo WhatsApp) */}
+                    <button
+                      onClick={() => openWhatsApp(product, 'inquiry')}
+                      className="w-full bg-green-600 text-white py-2.5 px-4 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2 font-medium shadow-sm active:scale-95 transform duration-100"
+                    >
+                      <MessageCircle size={18} />
+                      Preguntar por WhatsApp
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* MODAL DE PAGO INTELIGENTE */}
+      {selectedProduct && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl relative overflow-hidden">
+            {/* Header con gradiente amarillo/azul (MP vibes) */}
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-yellow-400 to-blue-500"></div>
+            
+            <button 
+              onClick={() => setSelectedProduct(null)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 transition-colors"
+            >
+              ✕
+            </button>
+
+            <div className="text-center mb-6">
+              <h3 className="text-xl font-bold text-gray-800">Confirmar Compra</h3>
+              <p className="text-sm text-gray-500 mt-1">Estás por comprar: <span className="font-medium text-gray-800">{selectedProduct.title}</span></p>
+              <div className="mt-2 text-2xl font-bold text-gray-800">${Number(selectedProduct.price).toLocaleString()}</div>
+            </div>
+            
+            <div className="space-y-4 mb-6">
+              {/* ALIAS CARD */}
+              {shopData.alias && (
+                <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 relative group">
+                  <p className="text-xs text-blue-600 font-semibold mb-1 uppercase tracking-wider">Alias (Mercado Pago)</p>
+                  <div className="flex items-center justify-between">
+                    <code className="text-lg font-mono font-bold text-gray-800">{shopData.alias}</code>
+                    <button 
+                      onClick={() => handleCopy(shopData.alias, 'alias')}
+                      className={`p-2 rounded-lg transition-all ${copiedField === 'alias' ? 'bg-green-500 text-white' : 'bg-white text-blue-600 shadow-sm hover:bg-blue-50'}`}
+                    >
+                      {copiedField === 'alias' ? <Check size={18} /> : <Copy size={18} />}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* CBU CARD */}
+              {shopData.cbu && (
+                <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                  <p className="text-xs text-gray-500 font-semibold mb-1 uppercase tracking-wider">CBU / CVU</p>
+                  <div className="flex items-center justify-between">
+                    <code className="text-sm font-mono text-gray-600 break-all">{shopData.cbu}</code>
+                    <button 
+                      onClick={() => handleCopy(shopData.cbu, 'cbu')}
+                      className={`p-2 rounded-lg transition-all ml-2 ${copiedField === 'cbu' ? 'bg-green-500 text-white' : 'bg-white text-gray-600 shadow-sm hover:bg-gray-100'}`}
+                    >
+                      {copiedField === 'cbu' ? <Check size={18} /> : <Copy size={18} />}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ACCIONES */}
+            <div className="space-y-3">
+              {shopData.alias && (
+                <button
+                  onClick={openMercadoPagoApp}
+                  className="w-full bg-yellow-400 text-gray-900 py-3 rounded-xl font-bold hover:bg-yellow-500 transition-colors flex items-center justify-center gap-2 shadow-md shadow-yellow-200"
+                >
+                  <Wallet size={18} />
+                  Abrir Mercado Pago
+                </button>
+              )}
+
+              <button
+                onClick={() => openWhatsApp(selectedProduct, 'payment')}
+                className="w-full bg-green-600 text-white py-3 rounded-xl font-semibold hover:bg-green-700 transition-colors flex items-center justify-center gap-2 shadow-md shadow-green-200"
+              >
+                <ExternalLink size={18} />
+                Ya pagué, enviar comprobante
+              </button>
+              
+              <button
+                onClick={() => openWhatsApp(selectedProduct, 'buy_direct')}
+                className="w-full text-sm text-gray-500 hover:text-gray-700 py-2 font-medium"
+              >
+                Prefiero acordar con el vendedor
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 
