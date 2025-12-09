@@ -7,6 +7,74 @@ export const handler = async (event) => {
   try {
     const { imageBase64 } = JSON.parse(event.body);
     
+    // --- CONFIGURACIÓN AZURE OPENAI (GPT-4o mini) ---
+    const AOAI_KEY = process.env.AZURE_OPENAI_KEY;
+    const AOAI_RESOURCE = process.env.AZURE_OPENAI_RESOURCE || "cjmbrazil";
+    const AOAI_DEPLOYMENT = process.env.AZURE_OPENAI_DEPLOYMENT || "gpt-4o-mini"; 
+    const AOAI_API_VERSION = "2024-06-01";
+    
+    if (!AOAI_KEY) {
+      console.error("Falta la clave AZURE_OPENAI_KEY");
+      return { statusCode: 500, body: JSON.stringify({ error: "Error de configuración del servidor (AI)" }) };
+    }
+
+    const aoaiEndpoint = `https://${AOAI_RESOURCE}.openai.azure.com/openai/deployments/${AOAI_DEPLOYMENT}/chat/completions?api-version=${AOAI_API_VERSION}`;
+
+    // --- NUEVA IMPLEMENTACIÓN: GPT-4o mini ---
+    try {
+      const response = await fetch(aoaiEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'api-key': AOAI_KEY
+        },
+        body: JSON.stringify({
+          messages: [
+            {
+              role: "system",
+              content: "Eres un experto en marketing digital y copywriting para e-commerce. Tu tarea es analizar la imagen de un producto y generar un título atractivo y una descripción de venta persuasiva. Responde EXCLUSIVAMENTE en formato JSON con las claves 'title' y 'description'."
+            },
+            {
+              role: "user",
+              content: [
+                { type: "text", text: "Analiza esta imagen y crea un título corto (max 50 chars) y una descripción vendedora con emojis y bullets." },
+                { type: "image_url", image_url: { url: `data:image/jpeg;base64,${imageBase64}` } }
+              ]
+            }
+          ],
+          max_tokens: 300,
+          temperature: 0.7,
+          response_format: { type: "json_object" }
+        })
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        console.error("Azure OpenAI Error:", errText);
+        throw new Error(`Azure OpenAI falló: ${response.status} - ${errText}`);
+      }
+
+      const data = await response.json();
+      const content = JSON.parse(data.choices[0].message.content);
+
+      return {
+        statusCode: 200,
+        body: JSON.stringify({
+          title: content.title,
+          description: content.description
+        }),
+        headers: { "Content-Type": "application/json" }
+      };
+
+    } catch (aiError) {
+      console.error("Fallo GPT-4o mini, intentando fallback a Computer Vision...", aiError);
+      // Si falla GPT-4o, podríamos caer al código antiguo, pero por ahora lanzamos el error
+      // para que el usuario sepa que debe arreglar el deployment name.
+      throw aiError;
+    }
+
+    /* 
+    // --- CÓDIGO ANTERIOR (LEGACY: AZURE COMPUTER VISION) ---
     // Obtener credenciales desde variables de entorno
     const azureKey = process.env.AZURE_VISION_KEY;
     const azureEndpoint = process.env.AZURE_VISION_ENDPOINT;
@@ -64,6 +132,7 @@ export const handler = async (event) => {
       }),
       headers: { "Content-Type": "application/json" }
     };
+    */
 
   } catch (error) {
     console.error("Error en Function:", error);
