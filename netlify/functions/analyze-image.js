@@ -5,14 +5,25 @@ export const handler = async (event) => {
   }
 
   try {
-    const { imageBase64 } = JSON.parse(event.body);
+    let bodyData;
+    try {
+      bodyData = JSON.parse(event.body);
+    } catch (e) {
+      return { statusCode: 400, body: JSON.stringify({ error: "Invalid JSON", details: "El cuerpo de la solicitud no es un JSON válido." }) };
+    }
     
+    const { imageBase64 } = bodyData;
+    
+    if (!imageBase64) {
+      return { statusCode: 400, body: JSON.stringify({ error: "Missing Data", details: "Falta la imagen en base64." }) };
+    }
+
     // --- CONFIGURACIÓN OPENAI (Standard) ---
     const OPENAI_KEY = process.env.OPENAI_API_KEY;
     
     if (!OPENAI_KEY) {
       console.error("Falta la clave OPENAI_API_KEY");
-      return { statusCode: 500, body: JSON.stringify({ error: "Error de configuración del servidor (AI)" }) };
+      return { statusCode: 500, body: JSON.stringify({ error: "Config Error", details: "Falta la clave OPENAI_API_KEY en las variables de entorno de Netlify." }) };
     }
 
     const openaiEndpoint = "https://api.openai.com/v1/chat/completions";
@@ -49,7 +60,10 @@ export const handler = async (event) => {
       if (!response.ok) {
         const errText = await response.text();
         console.error("OpenAI API Error:", errText);
-        throw new Error(`OpenAI falló: ${response.status} - ${errText}`);
+        return { 
+          statusCode: response.status, 
+          body: JSON.stringify({ error: "OpenAI Error", details: `OpenAI respondió con error: ${response.status} - ${errText.substring(0, 200)}` }) 
+        };
       }
 
       const data = await response.json();
@@ -66,7 +80,10 @@ export const handler = async (event) => {
 
     } catch (aiError) {
       console.error("Fallo GPT-4o mini (OpenAI), revisa logs...", aiError);
-      throw aiError;
+      return { 
+        statusCode: 500, 
+        body: JSON.stringify({ error: "Execution Error", details: `Error ejecutando la IA: ${aiError.message}` }) 
+      };
     }
 
     /* 
