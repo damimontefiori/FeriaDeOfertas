@@ -27,17 +27,6 @@ const ShopView = () => {
     loadShop();
   }, [shopId, addLog]);
 
-  const handleBuyClick = async (product) => {
-    // Lógica de compra: Abrir WhatsApp con mensaje pre-armado
-    // No requerimos login para esto, para reducir fricción.
-    
-    const message = `Hola! Vi tu producto "${product.title}" en FeriaDeOfertas (Precio: $${product.price}) y me interesa comprarlo. ¿Está disponible?`;
-    const whatsappUrl = `https://wa.me/${shop.whatsapp.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(message)}`;
-    
-    window.open(whatsappUrl, '_blank');
-    addLog(`Click en comprar para ${product.title}`, 'info');
-  };
-
   if (loading) return <div className="p-10 text-center">Cargando tienda...</div>;
 
   if (!shop) return <div className="p-10 text-center text-red-500">Tienda no encontrada.</div>;
@@ -72,7 +61,7 @@ const ShopView = () => {
       <ProductList 
         shopId={shopId} 
         isOwner={false} 
-        onBuyClick={handleBuyClick}
+        shopData={shop}
       />
     </div>
   );
