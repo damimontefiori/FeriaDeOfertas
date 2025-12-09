@@ -72,7 +72,25 @@ const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopDa
   };
 
   const openMercadoPagoApp = () => {
-    window.location.href = "mercadopago://app/transfer/money";
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    
+    if (isMobile) {
+      // Intentar abrir la app directamente en la sección de transferencias
+      window.location.href = "mercadopago://app/transfer/money";
+      
+      // Fallback: Si en 2 segundos no se ha ido de la página, sugerir la web
+      setTimeout(() => {
+        // Verificamos si la página sigue visible (si se abrió la app, la página estaría oculta)
+        if (!document.hidden) {
+           if (window.confirm("No se detectó la app de Mercado Pago. ¿Deseas abrir la versión web?")) {
+             window.open("https://www.mercadopago.com.ar", "_blank");
+           }
+        }
+      }, 2000);
+    } else {
+      // En escritorio, ir directo a la web
+      window.open("https://www.mercadopago.com.ar", "_blank");
+    }
   };
 
   if (loading) return <div className="text-center py-12 text-gray-500">Cargando catálogo...</div>;
