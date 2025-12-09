@@ -187,7 +187,7 @@ const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopDa
             
             <div className="p-4 flex flex-col flex-grow">
               <h3 className="font-semibold text-gray-800 mb-1 line-clamp-1" title={product.title}>{product.title}</h3>
-              <p className={`text-sm text-gray-500 mb-4 flex-grow ${expandedProductId === product.id ? '' : 'line-clamp-2'}`}>{product.description}</p>
+              <p className={`text-sm text-gray-500 mb-4 flex-grow whitespace-pre-wrap ${expandedProductId === product.id ? '' : 'line-clamp-2'}`}>{product.description}</p>
               
               {/* INFO DE VENTA PARA EL DUEÑO */}
               {isOwner && product.status === 'sold' && (
