@@ -99,6 +99,15 @@ export const getShopProducts = async (shopId) => {
   return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
 
+export const deleteProduct = async (productId) => {
+  try {
+    await deleteDoc(doc(db, "products", productId));
+  } catch (error) {
+    console.error("Error deleting product: ", error);
+    throw error;
+  }
+};
+
 export const updateProductStatus = async (productId, status, buyerInfo = "") => {
   const productRef = doc(db, "products", productId);
   await updateDoc(productRef, { 

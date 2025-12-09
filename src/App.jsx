@@ -7,6 +7,7 @@ import CreateShop from './components/CreateShop';
 import AddProduct from './components/AddProduct';
 import ProductList from './components/ProductList';
 import ShopView from './pages/ShopView';
+import { deleteProduct } from './services/db';
 import { Copy, Share2, Check, Plus, ExternalLink } from 'lucide-react';
 
 const Dashboard = () => {
@@ -18,6 +19,22 @@ const Dashboard = () => {
   const navigate = useNavigate();
 
   const shopUrl = userProfile?.shopId ? `${window.location.origin}/shop/${userProfile.shopId}` : '';
+
+  const handleDeleteProduct = async (productId) => {
+    if (!window.confirm("¿Estás seguro de que quieres eliminar este producto permanentemente?")) {
+      return;
+    }
+
+    try {
+      await deleteProduct(productId);
+      setRefreshProducts(prev => prev + 1);
+      addLog('Producto eliminado correctamente', 'info');
+    } catch (error) {
+      console.error("Error eliminando producto:", error);
+      alert("Hubo un error al intentar borrar el producto.");
+      addLog(`Error eliminando producto: ${error.message}`, 'error');
+    }
+  };
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(shopUrl);
@@ -167,6 +184,7 @@ const Dashboard = () => {
           shopId={userProfile.shopId} 
           refreshTrigger={refreshProducts} 
           isOwner={true}
+          onDelete={handleDeleteProduct}
         />
 
         {showAddProduct && (
