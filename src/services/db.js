@@ -44,8 +44,10 @@ export const createShop = async (userId, shopData) => {
     ownerId: userId,
     name: shopData.name,
     description: shopData.description || "",
-    whatsapp: shopData.whatsapp, // For coordination
-    location: shopData.location, // Locality, cross streets
+    whatsapp: shopData.whatsapp,
+    location: shopData.location,
+    alias: shopData.alias || "", // Nuevo campo
+    cbu: shopData.cbu || "",     // Nuevo campo
     createdAt: serverTimestamp(),
     active: true
   });
