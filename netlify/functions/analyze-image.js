@@ -9,16 +9,16 @@ export const handler = async (event) => {
     
     // --- CONFIGURACIÓN AZURE OPENAI (GPT-4o mini) ---
     const AOAI_KEY = process.env.AZURE_OPENAI_KEY;
-    const AOAI_RESOURCE = process.env.AZURE_OPENAI_RESOURCE || "cjmbrazil";
+    const AOAI_RESOURCE = process.env.AZURE_OPENAI_RESOURCE || "damimontefioriacc-resource";
     const AOAI_DEPLOYMENT = process.env.AZURE_OPENAI_DEPLOYMENT || "gpt-4o-mini"; 
-    const AOAI_API_VERSION = "2024-06-01";
+    const AOAI_API_VERSION = "2024-04-01-preview";
     
     if (!AOAI_KEY) {
       console.error("Falta la clave AZURE_OPENAI_KEY");
       return { statusCode: 500, body: JSON.stringify({ error: "Error de configuración del servidor (AI)" }) };
     }
 
-    const aoaiEndpoint = `https://${AOAI_RESOURCE}.openai.azure.com/openai/deployments/${AOAI_DEPLOYMENT}/chat/completions?api-version=${AOAI_API_VERSION}`;
+    const aoaiEndpoint = `https://${AOAI_RESOURCE}.cognitiveservices.azure.com/openai/deployments/${AOAI_DEPLOYMENT}/chat/completions?api-version=${AOAI_API_VERSION}`;
 
     // --- NUEVA IMPLEMENTACIÓN: GPT-4o mini ---
     try {
