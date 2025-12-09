@@ -7,13 +7,37 @@ import CreateShop from './components/CreateShop';
 import AddProduct from './components/AddProduct';
 import ProductList from './components/ProductList';
 import ShopView from './pages/ShopView';
+import { Copy, Share2, Check, Plus, ExternalLink } from 'lucide-react';
 
 const Dashboard = () => {
   const { user, userProfile, profileError, loginWithGoogle, logout, refreshProfile } = useAuth();
   const { addLog } = useLogger();
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [refreshProducts, setRefreshProducts] = useState(0);
+  const [copiedLink, setCopiedLink] = useState(false);
   const navigate = useNavigate();
+
+  const shopUrl = userProfile?.shopId ? `${window.location.origin}/shop/${userProfile.shopId}` : '';
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(shopUrl);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2000);
+  };
+
+  const handleShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Mi Tienda en FeriaDeOfertas',
+          text: '¡Mira mis productos!',
+          url: shopUrl,
+        });
+      } catch (error) {
+        console.log('Error sharing', error);
+      }
+    }
+  };
 
   if (!user) {
     return (
@@ -83,19 +107,57 @@ const Dashboard = () => {
           </div>
         </header>
 
-        <div className="bg-white p-8 rounded-lg shadow text-center mb-8">
-          <h2 className="text-xl font-semibold mb-4">¡Tienda Activa!</h2>
-          <p className="mb-4 text-gray-600">Comparte este link con tus clientes:</p>
-          <code className="bg-gray-100 p-2 rounded block mb-4 select-all">
-            {window.location.origin}/shop/{userProfile.shopId}
-          </code>
-          
-          <div className="flex justify-center gap-4">
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-8">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="text-center md:text-left">
+              <h2 className="text-lg font-bold text-gray-800">¡Tu tienda está lista! 🚀</h2>
+              <p className="text-sm text-gray-500">Comparte el enlace para empezar a vender.</p>
+            </div>
+            
+            <div className="flex items-center gap-2 w-full md:w-auto bg-gray-50 p-2 rounded-lg border border-gray-200 max-w-full">
+              <div className="flex-grow md:flex-grow-0 overflow-hidden min-w-0">
+                <p className="text-sm text-gray-600 truncate md:max-w-[300px] select-all font-mono">
+                  {shopUrl}
+                </p>
+              </div>
+              
+              <div className="flex gap-1 shrink-0">
+                <button 
+                  onClick={handleCopyLink}
+                  className="p-2 hover:bg-white rounded-md text-gray-600 transition-colors shadow-sm"
+                  title="Copiar enlace"
+                >
+                  {copiedLink ? <Check size={18} className="text-green-600" /> : <Copy size={18} />}
+                </button>
+                
+                <button 
+                  onClick={handleShare}
+                  className="p-2 hover:bg-white rounded-md text-blue-600 transition-colors shadow-sm"
+                  title="Compartir"
+                >
+                  <Share2 size={18} />
+                </button>
+
+                <a 
+                  href={shopUrl} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="p-2 hover:bg-white rounded-md text-gray-600 transition-colors shadow-sm"
+                  title="Abrir en nueva pestaña"
+                >
+                  <ExternalLink size={18} />
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6 flex justify-center md:justify-start border-t pt-6">
              <button 
               onClick={() => setShowAddProduct(true)}
-              className="mt-4 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center gap-2"
+              className="bg-blue-600 text-white px-5 py-2.5 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 font-medium shadow-sm shadow-blue-200"
             >
-              + Agregar Producto
+              <Plus size={20} />
+              Agregar Nuevo Producto
             </button>
           </div>
         </div>
