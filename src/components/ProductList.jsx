@@ -6,6 +6,7 @@ import { Trash2, Edit, ShoppingCart, ExternalLink, Copy, Check, Wallet, MessageC
 const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopData }) => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [expandedProductId, setExpandedProductId] = useState(null);
   
   // Modal State
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -161,7 +162,11 @@ const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopDa
     <>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {visibleProducts.map((product) => (
-          <div key={product.id} className={`bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden border border-gray-100 flex flex-col group ${product.status === 'sold' ? 'opacity-80 bg-gray-50' : ''}`}>
+          <div 
+            key={product.id} 
+            onClick={() => setExpandedProductId(expandedProductId === product.id ? null : product.id)}
+            className={`bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden border border-gray-100 flex flex-col group cursor-pointer ${product.status === 'sold' ? 'opacity-80 bg-gray-50' : ''} ${expandedProductId === product.id ? 'ring-2 ring-blue-500 shadow-lg scale-[1.02] z-10' : ''}`}
+          >
             <div className="relative aspect-square overflow-hidden bg-gray-100">
               {product.finalImageUrl ? (
                 <img 
@@ -182,7 +187,7 @@ const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopDa
             
             <div className="p-4 flex flex-col flex-grow">
               <h3 className="font-semibold text-gray-800 mb-1 line-clamp-1" title={product.title}>{product.title}</h3>
-              <p className="text-sm text-gray-500 line-clamp-2 mb-4 flex-grow">{product.description}</p>
+              <p className={`text-sm text-gray-500 mb-4 flex-grow ${expandedProductId === product.id ? '' : 'line-clamp-2'}`}>{product.description}</p>
               
               {/* INFO DE VENTA PARA EL DUEÑO */}
               {isOwner && product.status === 'sold' && (
@@ -194,7 +199,7 @@ const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopDa
                 </div>
               )}
 
-              <div className="mt-auto space-y-2">
+              <div className="mt-auto space-y-2" onClick={(e) => e.stopPropagation()}>
                 {isOwner ? (
                   <div className="flex flex-col gap-2">
                     <div className="flex gap-2">
