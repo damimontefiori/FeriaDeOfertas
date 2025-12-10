@@ -183,6 +183,16 @@ const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopDa
               <div className={`absolute top-2 right-2 px-2 py-1 rounded-full text-sm font-bold shadow-sm ${product.status === 'sold' ? 'bg-red-600 text-white' : 'bg-white/90 backdrop-blur-sm text-gray-800'}`}>
                 {product.status === 'sold' ? 'VENDIDO' : `$${Number(product.price).toLocaleString()}`}
               </div>
+
+              {product.status !== 'sold' && (
+                  <div className={`absolute top-2 left-2 px-2 py-0.5 rounded-md text-xs font-bold shadow-sm uppercase tracking-wide ${
+                      product.condition === 'new' 
+                      ? 'bg-green-500 text-white' 
+                      : 'bg-orange-400/90 text-white'
+                  }`}>
+                      {product.condition === 'new' ? 'Nuevo ✨' : 'Usado'}
+                  </div>
+              )}
             </div>
             
             <div className="p-4 flex flex-col flex-grow">

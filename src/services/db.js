@@ -84,6 +84,7 @@ export const addProduct = async (shopId, productData) => {
     title: productData.title,
     description: productData.description,
     price: Number(productData.price),
+    condition: productData.condition || 'used',
     images: productData.images || [], // Array of R2 URLs
     status: 'available', // available, pending, sold, inactive
     createdAt: serverTimestamp()
@@ -106,6 +107,7 @@ export const updateProduct = async (productId, productData) => {
     title: productData.title,
     description: productData.description,
     price: Number(productData.price),
+    condition: productData.condition || 'used',
     // Solo actualizamos imágenes si se envían nuevas (o lógica que decidas)
     // Por simplicidad, si envías images, se sobrescriben.
     ...(productData.images && { images: productData.images }),

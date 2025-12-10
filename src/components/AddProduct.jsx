@@ -15,7 +15,8 @@ const AddProduct = ({ onClose, onProductAdded, productToEdit }) => {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    price: ''
+    price: '',
+    condition: 'used'
   });
 
   useEffect(() => {
@@ -23,7 +24,8 @@ const AddProduct = ({ onClose, onProductAdded, productToEdit }) => {
       setFormData({
         title: productToEdit.title,
         description: productToEdit.description || '',
-        price: productToEdit.price ? productToEdit.price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") : ''
+        price: productToEdit.price ? productToEdit.price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") : '',
+        condition: productToEdit.condition || 'used'
       });
       if (productToEdit.finalImageUrl) {
         setImagePreview(productToEdit.finalImageUrl);
@@ -209,6 +211,31 @@ const AddProduct = ({ onClose, onProductAdded, productToEdit }) => {
               )}
             </button>
           )}
+
+          <div className="flex gap-2">
+            <button
+                type="button"
+                onClick={() => setFormData({ ...formData, condition: 'used' })}
+                className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all border ${
+                    formData.condition === 'used' 
+                    ? 'bg-orange-100 text-orange-700 border-orange-300 ring-1 ring-orange-300' 
+                    : 'bg-gray-50 text-gray-400 border-gray-200 hover:bg-gray-100'
+                }`}
+            >
+                USADO
+            </button>
+            <button
+                type="button"
+                onClick={() => setFormData({ ...formData, condition: 'new' })}
+                className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all border ${
+                    formData.condition === 'new' 
+                    ? 'bg-green-100 text-green-700 border-green-300 ring-1 ring-green-300' 
+                    : 'bg-gray-50 text-gray-400 border-gray-200 hover:bg-gray-100'
+                }`}
+            >
+                NUEVO ✨
+            </button>
+          </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Título del Producto</label>
