@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { addProduct } from '../services/db';
+import { addProduct, updateProduct } from '../services/db';
 import { uploadFile } from '../services/storage';
 import { useLogger } from '../context/LoggerContext';
-import { PackagePlus, X, Upload, Image as ImageIcon, Wand2, Loader2 } from 'lucide-react';
+import { PackagePlus, X, Upload, Image as ImageIcon, Wand2, Loader2, Edit } from 'lucide-react';
 
-const AddProduct = ({ onClose, onProductAdded }) => {
+const AddProduct = ({ onClose, onProductAdded, productToEdit }) => {
   const { userProfile } = useAuth();
   const { addLog } = useLogger();
   const [loading, setLoading] = useState(false);
@@ -17,6 +17,19 @@ const AddProduct = ({ onClose, onProductAdded }) => {
     description: '',
     price: ''
   });
+
+  useEffect(() => {
+    if (productToEdit) {
+      setFormData({
+        title: productToEdit.title,
+        description: productToEdit.description || '',
+        price: productToEdit.price ? productToEdit.price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") : ''
+      });
+      if (productToEdit.finalImageUrl) {
+        setImagePreview(productToEdit.finalImageUrl);
+      }
+    }
+  }, [productToEdit]);
 
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
@@ -94,21 +107,25 @@ const AddProduct = ({ onClose, onProductAdded }) => {
       alert('Error: No tienes una tienda asociada.');
       return;
     }
-    if (files.length === 0) {
+    if (files.length === 0 && !productToEdit) {
       alert('Debes subir al menos una imagen del producto.');
       return;
     }
 
     setLoading(true);
-    addLog('Iniciando carga de producto...', 'info');
+    addLog(productToEdit ? 'Actualizando producto...' : 'Iniciando carga de producto...', 'info');
 
     try {
-      // 1. Subir imágenes a R2
-      const imageUrls = [];
-      for (const file of files) {
-        addLog(`Subiendo imagen: ${file.name}...`, 'info');
-        const url = await uploadFile(file);
-        imageUrls.push(url);
+      // 1. Subir imágenes a R2 (si hay nuevas)
+      let imageUrls = productToEdit ? (productToEdit.images || []) : [];
+      
+      if (files.length > 0) {
+        imageUrls = []; // Si sube nueva, reemplazamos la anterior (simple)
+        for (const file of files) {
+          addLog(`Subiendo imagen: ${file.name}...`, 'info');
+          const url = await uploadFile(file);
+          imageUrls.push(url);
+        }
       }
 
       // 2. Guardar producto en Firestore
@@ -119,16 +136,21 @@ const AddProduct = ({ onClose, onProductAdded }) => {
         images: imageUrls
       };
 
-      await addProduct(userProfile.shopId, productData);
-      addLog('Producto creado exitosamente', 'success');
+      if (productToEdit) {
+        await updateProduct(productToEdit.id, productData);
+        addLog('Producto actualizado exitosamente', 'success');
+      } else {
+        await addProduct(userProfile.shopId, productData);
+        addLog('Producto creado exitosamente', 'success');
+      }
       
       if (onProductAdded) onProductAdded();
       if (onClose) onClose();
 
     } catch (error) {
       console.error("Error detallado:", error);
-      addLog(`Error al crear producto: ${error.message}`, 'error');
-      alert(`Hubo un error al crear el producto: ${error.message}\n\nSi dice "Network Error" o "Failed to fetch", es probable que falte configurar CORS en tu bucket de R2.`);
+      addLog(`Error: ${error.message}`, 'error');
+      alert(`Hubo un error: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -139,7 +161,8 @@ const AddProduct = ({ onClose, onProductAdded }) => {
       <div className="bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center p-4 border-b">
           <h2 className="text-xl font-bold flex items-center gap-2 text-gray-800">
-            <PackagePlus size={24} /> Nuevo Producto
+            {productToEdit ? <Edit size={24} /> : <PackagePlus size={24} />} 
+            {productToEdit ? 'Editar Producto' : 'Nuevo Producto'}
           </h2>
           <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
             <X size={24} />
@@ -214,7 +237,7 @@ const AddProduct = ({ onClose, onProductAdded }) => {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
             <textarea
-              className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 h-24 resize-none outline-none transition-shadow"
+              className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 h-48 resize-none outline-none transition-shadow"
               placeholder="Detalles del producto, estado, talle..."
               value={formData.description}
               onChange={e => setFormData({...formData, description: e.target.value})}
@@ -229,10 +252,10 @@ const AddProduct = ({ onClose, onProductAdded }) => {
             >
               {loading ? (
                 <>
-                  <Loader2 size={20} className="animate-spin" /> Publicando...
+                  <Loader2 size={20} className="animate-spin" /> {productToEdit ? 'Guardando...' : 'Publicando...'}
                 </>
               ) : (
-                'Publicar Producto'
+                productToEdit ? 'Guardar Cambios' : 'Publicar Producto'
               )}
             </button>
           </div>

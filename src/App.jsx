@@ -14,11 +14,17 @@ const Dashboard = () => {
   const { user, userProfile, profileError, loginWithGoogle, logout, refreshProfile } = useAuth();
   const { addLog } = useLogger();
   const [showAddProduct, setShowAddProduct] = useState(false);
+  const [editingProduct, setEditingProduct] = useState(null);
   const [refreshProducts, setRefreshProducts] = useState(0);
   const [copiedLink, setCopiedLink] = useState(false);
   const navigate = useNavigate();
 
   const shopUrl = userProfile?.shopId ? `${window.location.origin}/shop/${userProfile.shopId}` : '';
+
+  const handleEditProduct = (product) => {
+    setEditingProduct(product);
+    setShowAddProduct(true);
+  };
 
   const handleDeleteProduct = async (productId) => {
     if (!window.confirm("¿Estás seguro de que quieres eliminar este producto permanentemente?")) {
@@ -170,7 +176,10 @@ const Dashboard = () => {
 
           <div className="mt-6 flex justify-center md:justify-start border-t pt-6">
              <button 
-              onClick={() => setShowAddProduct(true)}
+              onClick={() => {
+                setEditingProduct(null);
+                setShowAddProduct(true);
+              }}
               className="bg-blue-600 text-white px-5 py-2.5 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 font-medium shadow-sm shadow-blue-200"
             >
               <Plus size={20} />
@@ -185,16 +194,22 @@ const Dashboard = () => {
           refreshTrigger={refreshProducts} 
           isOwner={true}
           onDelete={handleDeleteProduct}
+          onEdit={handleEditProduct}
         />
 
         {showAddProduct && (
           <AddProduct 
-            onClose={() => setShowAddProduct(false)} 
+            onClose={() => {
+              setShowAddProduct(false);
+              setEditingProduct(null);
+            }} 
             onProductAdded={() => {
               setShowAddProduct(false);
+              setEditingProduct(null);
               setRefreshProducts(prev => prev + 1);
-              addLog('Producto agregado, actualizando lista...', 'info');
-            }} 
+              addLog(editingProduct ? 'Producto actualizado' : 'Producto agregado', 'info');
+            }}
+            productToEdit={editingProduct}
           />
         )}
       </div>

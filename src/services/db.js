@@ -100,6 +100,19 @@ export const getShopProducts = async (shopId) => {
   return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
 
+export const updateProduct = async (productId, productData) => {
+  const productRef = doc(db, "products", productId);
+  await updateDoc(productRef, {
+    title: productData.title,
+    description: productData.description,
+    price: Number(productData.price),
+    // Solo actualizamos imágenes si se envían nuevas (o lógica que decidas)
+    // Por simplicidad, si envías images, se sobrescriben.
+    ...(productData.images && { images: productData.images }),
+    updatedAt: serverTimestamp()
+  });
+};
+
 export const deleteProduct = async (productId) => {
   try {
     await deleteDoc(doc(db, "products", productId));
