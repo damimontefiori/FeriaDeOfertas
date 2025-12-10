@@ -46,7 +46,7 @@ export const handler = async (event) => {
             {
               role: "user",
               content: [
-                { type: "text", text: "Analiza esta imagen y crea un título corto (max 50 chars) y una descripción vendedora con emojis y bullets." },
+                { type: "text", text: "Analiza esta imagen y crea un título corto (max 50 chars) y una descripción vendedora con emojis y bullets. IMPORTANTE: No uses asteriscos (*) ni formato markdown para negritas en la descripción. Usa texto plano." },
                 { type: "image_url", image_url: { url: `data:image/jpeg;base64,${imageBase64}` } }
               ]
             }
