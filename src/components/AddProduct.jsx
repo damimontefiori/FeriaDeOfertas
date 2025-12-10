@@ -26,6 +26,16 @@ const AddProduct = ({ onClose, onProductAdded }) => {
     }
   };
 
+  const handlePriceChange = (e) => {
+    // Eliminar todo lo que no sea número
+    const rawValue = e.target.value.replace(/\D/g, '');
+    
+    // Formatear con puntos de miles
+    const formattedValue = rawValue.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+
+    setFormData({ ...formData, price: formattedValue });
+  };
+
   // --- LÓGICA DE IA (AZURE) ---
   const handleMagicFill = async () => {
     if (files.length === 0) {
@@ -102,8 +112,10 @@ const AddProduct = ({ onClose, onProductAdded }) => {
       }
 
       // 2. Guardar producto en Firestore
+      const cleanPrice = formData.price.replace(/\./g, '');
       const productData = {
         ...formData,
+        price: cleanPrice,
         images: imageUrls
       };
 
@@ -190,13 +202,12 @@ const AddProduct = ({ onClose, onProductAdded }) => {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Precio ($)</label>
             <input
-              type="number"
+              type="text"
               required
-              min="0"
               className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none transition-shadow"
-              placeholder="0.00"
+              placeholder="0"
               value={formData.price}
-              onChange={e => setFormData({...formData, price: e.target.value})}
+              onChange={handlePriceChange}
             />
           </div>
 
