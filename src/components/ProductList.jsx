@@ -167,7 +167,7 @@ const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopDa
             onClick={() => setExpandedProductId(expandedProductId === product.id ? null : product.id)}
             className={`bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden border border-gray-100 flex flex-col group cursor-pointer ${product.status === 'sold' ? 'opacity-80 bg-gray-50' : ''} ${expandedProductId === product.id ? 'ring-2 ring-blue-500 shadow-lg scale-[1.02] z-10' : ''}`}
           >
-            <div className="relative aspect-square overflow-hidden bg-gray-100">
+            <div className={`relative overflow-hidden bg-gray-100 transition-all duration-500 ${expandedProductId === product.id ? 'aspect-[4/5]' : 'aspect-square'}`}>
               {product.finalImageUrl ? (
                 <img 
                   src={product.finalImageUrl} 
