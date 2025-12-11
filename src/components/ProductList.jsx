@@ -293,16 +293,34 @@ const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopDa
               ✕
             </button>
 
-            <div className="text-center mb-6">
+            <div className="text-center mb-4">
               <h3 className="text-xl font-bold text-gray-800">Confirmar Compra</h3>
               <p className="text-sm text-gray-500 mt-1">Estás por comprar: <span className="font-medium text-gray-800">{selectedProduct.title}</span></p>
-              <div className="mt-2 text-2xl font-bold text-gray-800">${Number(selectedProduct.price).toLocaleString()}</div>
+              <div className="mt-1 text-2xl font-bold text-gray-800">${Number(selectedProduct.price).toLocaleString()}</div>
             </div>
             
-            <div className="space-y-4 mb-6">
+            {/* INSTRUCCIONES COMPACTAS */}
+            <div className="bg-gray-50 rounded-lg p-3 mb-4 border border-gray-100">
+                <div className="flex flex-col gap-2 text-sm text-gray-700">
+                    <div className="flex items-center gap-2">
+                        <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold flex-shrink-0">1</span>
+                        <span>Copia el Alias o CBU.</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold flex-shrink-0">2</span>
+                        <span>Transfiere el dinero.</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold flex-shrink-0">3</span>
+                        <span>Envía el comprobante.</span>
+                    </div>
+                </div>
+            </div>
+
+            <div className="space-y-3 mb-4">
               {/* ALIAS CARD */}
               {shopData.alias && (
-                <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 relative group">
+                <div className="bg-blue-50 p-3 rounded-xl border border-blue-100 relative group">
                   <p className="text-xs text-blue-600 font-semibold mb-1 uppercase tracking-wider">Alias (Mercado Pago)</p>
                   <div className="flex items-center justify-between">
                     <code className="text-lg font-mono font-bold text-gray-800">{shopData.alias}</code>
@@ -318,7 +336,7 @@ const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopDa
 
               {/* CBU CARD */}
               {shopData.cbu && (
-                <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                <div className="bg-gray-50 p-3 rounded-xl border border-gray-200">
                   <p className="text-xs text-gray-500 font-semibold mb-1 uppercase tracking-wider">CBU / CVU</p>
                   <div className="flex items-center justify-between">
                     <code className="text-sm font-mono text-gray-600 break-all">{shopData.cbu}</code>
