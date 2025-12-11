@@ -76,6 +76,14 @@ export const getShopById = async (shopId) => {
   return shopSnap.exists() ? { id: shopSnap.id, ...shopSnap.data() } : null;
 };
 
+export const updateShop = async (shopId, shopData) => {
+  const shopRef = doc(db, "shops", shopId);
+  await updateDoc(shopRef, {
+    ...shopData,
+    updatedAt: serverTimestamp()
+  });
+};
+
 // --- PRODUCTS ---
 
 export const addProduct = async (shopId, productData) => {

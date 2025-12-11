@@ -5,6 +5,8 @@ import ProductList from '../components/ProductList';
 import { useAuth } from '../context/AuthContext';
 import { useLogger } from '../context/LoggerContext';
 import { Store, MapPin, MessageCircle } from 'lucide-react';
+import { themes } from '../utils/themes';
+import SnowEffect from '../components/SnowEffect';
 
 const ShopView = () => {
   const { shopId } = useParams();
@@ -31,38 +33,50 @@ const ShopView = () => {
 
   if (!shop) return <div className="p-10 text-center text-red-500">Tienda no encontrada.</div>;
 
+  const themeStyles = themes[shop.theme] || themes.classic;
+
   return (
-    <div className="container mx-auto p-4 max-w-4xl">
-      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="bg-blue-100 p-3 rounded-full">
-            <Store className="text-blue-600" size={32} />
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold text-gray-800">{shop.name}</h1>
-            <p className="text-gray-600">{shop.description}</p>
-          </div>
-        </div>
+    <div className={`min-h-screen transition-colors duration-500 ${themeStyles.bg}`}>
+      
+      {/* HEADER */}
+      <div className={`relative ${themeStyles.header} ${themeStyles.text} pb-16 pt-10 px-4 shadow-lg overflow-hidden`}>
+        {themeStyles.snow && <SnowEffect />}
         
-        <div className="flex flex-wrap gap-4 mt-4 text-sm text-gray-500">
-          <div className="flex items-center gap-1">
-            <MapPin size={16} />
-            <span>{shop.location}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <MessageCircle size={16} />
-            <span>Contacto directo disponible al comprar</span>
-          </div>
+        <div className="container mx-auto max-w-4xl relative z-20">
+            <div className="flex items-center gap-4">
+                <div className="bg-white/20 p-4 rounded-full backdrop-blur-sm relative shadow-inner">
+                    <Store size={40} className="text-white" />
+                    {themeStyles.snow && <span className="absolute -top-3 -right-2 text-3xl transform rotate-12 filter drop-shadow-md">🎅</span>}
+                </div>
+                <div>
+                    <h1 className="text-3xl md:text-4xl font-bold drop-shadow-sm">{shop.name}</h1>
+                    <p className="opacity-90 text-lg">{shop.description}</p>
+                </div>
+            </div>
         </div>
       </div>
 
-      <h2 className="text-xl font-bold mb-4 px-2">Catálogo de Productos</h2>
-      
-      <ProductList 
-        shopId={shopId} 
-        isOwner={false} 
-        shopData={shop}
-      />
+      <div className="container mx-auto p-4 max-w-4xl -mt-8 relative z-20">
+        {/* INFO CARD */}
+        <div className="bg-white rounded-xl shadow-md p-4 mb-8 flex flex-wrap gap-4 text-sm text-gray-600 border border-gray-100">
+          <div className="flex items-center gap-2">
+            <MapPin size={18} className="text-blue-500" />
+            <span>{shop.location}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <MessageCircle size={18} className="text-green-500" />
+            <span>Contacto directo disponible al comprar</span>
+          </div>
+        </div>
+
+        <h2 className={`text-2xl font-bold mb-6 px-2 ${shop.theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>Catálogo de Productos</h2>
+        
+        <ProductList 
+          shopId={shopId} 
+          isOwner={false} 
+          shopData={shop}
+        />
+      </div>
     </div>
   );
 };

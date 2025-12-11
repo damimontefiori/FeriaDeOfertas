@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Routes, Route, Link, useNavigate } from 'react-router-dom';
 import { LoggerProvider, useLogger } from './context/LoggerContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -7,19 +7,40 @@ import CreateShop from './components/CreateShop';
 import AddProduct from './components/AddProduct';
 import ProductList from './components/ProductList';
 import ShopView from './pages/ShopView';
-import { deleteProduct } from './services/db';
-import { Copy, Share2, Check, Plus, ExternalLink } from 'lucide-react';
+import { deleteProduct, getShopById, updateShop } from './services/db';
+import { Copy, Share2, Check, Plus, ExternalLink, Settings, Palette, X } from 'lucide-react';
+import { themes } from './utils/themes';
 
 const Dashboard = () => {
   const { user, userProfile, profileError, loginWithGoogle, logout, refreshProfile } = useAuth();
   const { addLog } = useLogger();
   const [showAddProduct, setShowAddProduct] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [shopData, setShopData] = useState(null);
   const [editingProduct, setEditingProduct] = useState(null);
   const [refreshProducts, setRefreshProducts] = useState(0);
   const [copiedLink, setCopiedLink] = useState(false);
   const navigate = useNavigate();
 
   const shopUrl = userProfile?.shopId ? `${window.location.origin}/shop/${userProfile.shopId}` : '';
+
+  useEffect(() => {
+    if (userProfile?.shopId) {
+      getShopById(userProfile.shopId).then(setShopData);
+    }
+  }, [userProfile]);
+
+  const handleUpdateTheme = async (themeKey) => {
+    if (!shopData) return;
+    try {
+      await updateShop(shopData.id, { theme: themeKey });
+      setShopData(prev => ({ ...prev, theme: themeKey }));
+      addLog(`Tema actualizado a: ${themes[themeKey].name}`, 'success');
+    } catch (error) {
+      console.error("Error updating theme:", error);
+      addLog("Error al cambiar el tema", 'error');
+    }
+  };
 
   const handleEditProduct = (product) => {
     setEditingProduct(product);
@@ -126,9 +147,61 @@ const Dashboard = () => {
             </button>
             <span className="text-sm hidden md:inline text-gray-400">|</span>
             <span className="text-sm hidden md:inline">{user.email}</span>
+            <button 
+              onClick={() => setShowSettings(true)}
+              className="p-2 hover:bg-gray-100 rounded-full text-gray-600 transition-colors"
+              title="Configuración"
+            >
+              <Settings size={20} />
+            </button>
             <button onClick={logout} className="bg-gray-200 px-3 py-1 rounded text-sm hover:bg-gray-300">Salir</button>
           </div>
         </header>
+
+        {/* SETTINGS MODAL */}
+        {showSettings && shopData && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+              <div className="flex justify-between items-center p-4 border-b bg-gray-50">
+                <h3 className="font-bold text-lg flex items-center gap-2 text-gray-800">
+                  <Settings size={20} /> Configurar Tienda
+                </h3>
+                <button onClick={() => setShowSettings(false)} className="text-gray-400 hover:text-gray-600">
+                  <X size={24} />
+                </button>
+              </div>
+              
+              <div className="p-6">
+                <div className="mb-6">
+                  <label className="block text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                    <Palette size={18} className="text-blue-600" /> 
+                    Tema Visual
+                  </label>
+                  <div className="grid grid-cols-1 gap-3">
+                    {Object.entries(themes).map(([key, t]) => (
+                      <button
+                        key={key}
+                        onClick={() => handleUpdateTheme(key)}
+                        className={`flex items-center justify-between p-3 rounded-lg border-2 transition-all ${
+                          (shopData.theme || 'classic') === key 
+                          ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm' 
+                          : 'border-gray-100 hover:border-gray-300 text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        <span className="font-medium">{t.name}</span>
+                        {(shopData.theme || 'classic') === key && <Check size={18} />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                
+                <div className="text-xs text-gray-500 bg-blue-50 p-3 rounded border border-blue-100">
+                  ℹ️ El tema seleccionado cambiará el fondo y el encabezado de tu tienda pública.
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-8">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
