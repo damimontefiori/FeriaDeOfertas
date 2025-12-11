@@ -19,5 +19,13 @@ export const themes = {
     header: "bg-gradient-to-b from-red-600 to-red-800 border-b-4 border-green-700",
     text: "text-white",
     snow: true
+  },
+  nature: {
+    name: "Naturaleza 🌿",
+    bg: "bg-stone-50",
+    header: "bg-gradient-to-r from-green-600 to-emerald-700 border-b-4 border-stone-300",
+    text: "text-white",
+    snow: false,
+    leaf: true
   }
 };

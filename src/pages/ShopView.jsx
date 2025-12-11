@@ -7,6 +7,7 @@ import { useLogger } from '../context/LoggerContext';
 import { Store, MapPin, MessageCircle } from 'lucide-react';
 import { themes } from '../utils/themes';
 import SnowEffect from '../components/SnowEffect';
+import LeafEffect from '../components/LeafEffect';
 
 const ShopView = () => {
   const { shopId } = useParams();
@@ -41,12 +42,14 @@ const ShopView = () => {
       {/* HEADER */}
       <div className={`relative ${themeStyles.header} ${themeStyles.text} pb-16 pt-10 px-4 shadow-lg overflow-hidden`}>
         {themeStyles.snow && <SnowEffect />}
+        {themeStyles.leaf && <LeafEffect />}
         
         <div className="container mx-auto max-w-4xl relative z-20">
             <div className="flex items-center gap-4">
                 <div className="bg-white/20 p-4 rounded-full backdrop-blur-sm relative shadow-inner">
                     <Store size={40} className="text-white" />
                     {themeStyles.snow && <span className="absolute -top-3 -right-2 text-3xl transform rotate-12 filter drop-shadow-md">🎅</span>}
+                    {themeStyles.leaf && <span className="absolute -top-3 -right-2 text-3xl transform -rotate-12 filter drop-shadow-md">🌻</span>}
                 </div>
                 <div>
                     <h1 className="text-3xl md:text-4xl font-bold drop-shadow-sm">{shop.name}</h1>
