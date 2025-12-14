@@ -44,7 +44,7 @@ const ShopView = () => {
         {themeStyles.snow && <SnowEffect />}
         {themeStyles.leaf && <LeafEffect />}
         
-        <div className="container mx-auto max-w-4xl relative z-20">
+        <div className="container mx-auto max-w-[1600px] relative z-20">
             <div className="flex items-center gap-4">
                 <div className="bg-white/20 p-4 rounded-full backdrop-blur-sm relative shadow-inner">
                     <Store size={40} className="text-white" />
@@ -59,7 +59,7 @@ const ShopView = () => {
         </div>
       </div>
 
-      <div className="container mx-auto p-4 max-w-4xl -mt-8 relative z-20">
+      <div className="container mx-auto p-4 max-w-[1600px] -mt-8 relative z-20">
         {/* INFO CARD */}
         <div className="bg-white rounded-xl shadow-md p-4 mb-8 flex flex-wrap gap-4 text-sm text-gray-600 border border-gray-100">
           <div className="flex items-center gap-2">

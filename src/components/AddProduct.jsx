@@ -5,6 +5,52 @@ import { uploadFile } from '../services/storage';
 import { useLogger } from '../context/LoggerContext';
 import { PackagePlus, X, Upload, Image as ImageIcon, Wand2, Loader2, Edit } from 'lucide-react';
 
+// --- HELPER DE COMPRESIÓN ---
+const compressImage = (file) => {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 1200; // Suficiente para e-commerce y para la IA
+        const MAX_HEIGHT = 1200;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Convertir a Blob (JPEG calidad 0.8)
+        canvas.toBlob((blob) => {
+          // Retornamos un nuevo File con la data comprimida
+          const compressedFile = new File([blob], file.name, {
+            type: 'image/jpeg',
+            lastModified: Date.now(),
+          });
+          resolve(compressedFile);
+        }, 'image/jpeg', 0.8);
+      };
+    };
+  });
+};
+
 const AddProduct = ({ onClose, onProductAdded, productToEdit }) => {
   const { userProfile } = useAuth();
   const { addLog } = useLogger();
@@ -33,11 +79,19 @@ const AddProduct = ({ onClose, onProductAdded, productToEdit }) => {
     }
   }, [productToEdit]);
 
-  const handleFileChange = (e) => {
+  const handleFileChange = async (e) => {
     if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setFiles([file]); // Por ahora manejamos 1 archivo principal para simplificar la IA
-      setImagePreview(URL.createObjectURL(file));
+      const originalFile = e.target.files[0];
+      
+      // Comprimir imagen inmediatamente al seleccionar
+      try {
+        const compressedFile = await compressImage(originalFile);
+        setFiles([compressedFile]); // Guardamos la versión comprimida
+        setImagePreview(URL.createObjectURL(compressedFile));
+      } catch (error) {
+        console.error("Error comprimiendo imagen:", error);
+        alert("Error al procesar la imagen.");
+      }
     }
   };
 
