@@ -294,6 +294,7 @@ const Dashboard = () => {
 
 function App() {
   const appVersion = import.meta.env.VITE_APP_VERSION || 'DEV';
+  const SHOW_LOGS = false;
 
   return (
     <LoggerProvider>
@@ -311,7 +312,7 @@ function App() {
             <p className="text-xs mt-1">v{appVersion}</p>
           </footer>
 
-          <SystemLogger />
+          {SHOW_LOGS && <SystemLogger />}
         </div>
       </AuthProvider>
     </LoggerProvider>
