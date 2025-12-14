@@ -1,20 +1,23 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { getShopById } from '../services/db';
 import ProductList from '../components/ProductList';
 import { useAuth } from '../context/AuthContext';
 import { useLogger } from '../context/LoggerContext';
-import { Store, MapPin, MessageCircle } from 'lucide-react';
+import { Store, MapPin, MessageCircle, ArrowLeft } from 'lucide-react';
 import { themes } from '../utils/themes';
 import SnowEffect from '../components/SnowEffect';
 import LeafEffect from '../components/LeafEffect';
 
 const ShopView = () => {
   const { shopId } = useParams();
+  const navigate = useNavigate();
   const { user, loginWithGoogle } = useAuth();
   const { addLog } = useLogger();
   const [shop, setShop] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const isOwner = user && shop && user.uid === shop.ownerId;
 
   useEffect(() => {
     const loadShop = async () => {
@@ -45,16 +48,27 @@ const ShopView = () => {
         {themeStyles.leaf && <LeafEffect />}
         
         <div className="container mx-auto max-w-[1600px] relative z-20">
-            <div className="flex items-center gap-4">
-                <div className="bg-white/20 p-4 rounded-full backdrop-blur-sm relative shadow-inner">
-                    <Store size={40} className="text-white" />
-                    {themeStyles.snow && <span className="absolute -top-3 -right-2 text-3xl transform rotate-12 filter drop-shadow-md">🎅</span>}
-                    {themeStyles.leaf && <span className="absolute -top-3 -right-2 text-3xl transform -rotate-12 filter drop-shadow-md">🌻</span>}
+            <div className="flex justify-between items-center gap-4">
+                <div className="flex items-center gap-4">
+                    <div className="bg-white/20 p-4 rounded-full backdrop-blur-sm relative shadow-inner">
+                        <Store size={40} className="text-white" />
+                        {themeStyles.snow && <span className="absolute -top-3 -right-2 text-3xl transform rotate-12 filter drop-shadow-md">🎅</span>}
+                        {themeStyles.leaf && <span className="absolute -top-3 -right-2 text-3xl transform -rotate-12 filter drop-shadow-md">🌻</span>}
+                    </div>
+                    <div>
+                        <h1 className="text-3xl md:text-4xl font-bold drop-shadow-sm">{shop.name}</h1>
+                        <p className="opacity-90 text-lg">{shop.description}</p>
+                    </div>
                 </div>
-                <div>
-                    <h1 className="text-3xl md:text-4xl font-bold drop-shadow-sm">{shop.name}</h1>
-                    <p className="opacity-90 text-lg">{shop.description}</p>
-                </div>
+
+                {isOwner && (
+                    <button 
+                        onClick={() => navigate('/')}
+                        className="bg-black/20 hover:bg-black/30 text-white px-4 py-2 rounded-full backdrop-blur-md transition-all flex items-center gap-2 text-sm font-medium border border-white/10 shadow-sm whitespace-nowrap"
+                    >
+                        <ArrowLeft size={18} /> Volver al Panel
+                    </button>
+                )}
             </div>
         </div>
       </div>
