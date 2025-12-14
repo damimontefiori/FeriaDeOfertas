@@ -39,3 +39,6 @@ temp_Scripts/
 .env
 
 test-openai-direct.js
+
+test-openai.js
+test-function-local.js
