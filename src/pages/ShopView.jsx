@@ -48,7 +48,7 @@ const ShopView = () => {
         {themeStyles.leaf && <LeafEffect />}
         
         <div className="container mx-auto max-w-[1600px] relative z-20">
-            <div className="flex justify-between items-center gap-4">
+            <div className="flex justify-between items-start gap-4">
                 <div className="flex items-center gap-4">
                     <div className="bg-white/20 p-4 rounded-full backdrop-blur-sm relative shadow-inner">
                         <Store size={40} className="text-white" />
@@ -64,9 +64,9 @@ const ShopView = () => {
                 {isOwner && (
                     <button 
                         onClick={() => navigate('/')}
-                        className="bg-black/20 hover:bg-black/30 text-white px-4 py-2 rounded-full backdrop-blur-md transition-all flex items-center gap-2 text-sm font-medium border border-white/10 shadow-sm whitespace-nowrap"
+                        className="bg-black/20 hover:bg-black/30 text-white px-4 py-2 rounded-full backdrop-blur-md transition-all flex items-center gap-2 text-sm font-medium border border-white/10 shadow-sm whitespace-nowrap mt-2"
                     >
-                        <ArrowLeft size={18} /> Volver al Panel
+                        <ArrowLeft size={18} /> Volver
                     </button>
                 )}
             </div>
