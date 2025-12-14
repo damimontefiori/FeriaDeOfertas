@@ -133,7 +133,7 @@ const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopDa
     
     let message = '';
     if (type === 'payment') {
-      message = `Hola! 👋 Ya realicé la transferencia por *${product.title}* ($${product.price}). Te adjunto el comprobante.`;
+      message = `Hola! 👋 Ya realicé la transferencia por *${product.title}* ($${Number(product.price).toLocaleString()}). Te adjunto el comprobante.`;
     } else if (type === 'buy_direct') {
       message = `Hola! 👋 Quiero comprar *${product.title}*. ¿Cómo coordinamos el pago y entrega?`;
     } else {
