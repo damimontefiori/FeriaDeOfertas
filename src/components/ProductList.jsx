@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { getShopProducts, updateProductStatus } from '../services/db';
 import { getImageUrl } from '../services/storage';
-import { Trash2, Edit, ShoppingCart, ExternalLink, Copy, Check, Wallet, MessageCircle, HelpCircle, Archive, User, RotateCcw } from 'lucide-react';
+import { Trash2, Edit, ShoppingCart, ExternalLink, Copy, Check, Wallet, MessageCircle, HelpCircle, Archive, User, RotateCcw, X, Calendar } from 'lucide-react';
 
 const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopData }) => {
   const [products, setProducts] = useState([]);
@@ -11,6 +11,11 @@ const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopDa
   // Modal State
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [copiedField, setCopiedField] = useState(null);
+
+  // Sold Modal State
+  const [soldModalOpen, setSoldModalOpen] = useState(false);
+  const [productToSell, setProductToSell] = useState(null);
+  const [soldNote, setSoldNote] = useState("");
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -56,21 +61,29 @@ const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopDa
     fetchProducts();
   }, [shopId, shopData, refreshTrigger]);
 
-  const handleMarkAsSold = async (product) => {
-    const buyerInfo = window.prompt(
-      `Vas a marcar "${product.title}" como VENDIDO.\n\n(Opcional) Escribe el nombre del comprador o nota para recordar:`, 
-      ""
-    );
+  const openSoldModal = (product) => {
+    setProductToSell(product);
+    setSoldNote(""); 
+    setSoldModalOpen(true);
+  };
 
-    if (buyerInfo === null) return; // Cancelado
+  const handleConfirmSold = async () => {
+    if (!productToSell) return;
 
     try {
-      await updateProductStatus(product.id, 'sold', buyerInfo);
+      // Guardamos en DB (soldAt se genera automático en el backend)
+      await updateProductStatus(productToSell.id, 'sold', soldNote);
       
-      // Actualizamos estado local
+      // Actualización optimista de la UI
+      const now = new Date();
       setProducts(prev => {
         const updated = prev.map(p => 
-          p.id === product.id ? { ...p, status: 'sold', buyerInfo: buyerInfo } : p
+          p.id === productToSell.id ? { 
+              ...p, 
+              status: 'sold', 
+              buyerInfo: soldNote,
+              soldAt: { seconds: now.getTime() / 1000 } // Simulamos timestamp para ver la fecha ya
+          } : p
         );
         // Re-ordenar
         return updated.sort((a, b) => {
@@ -79,9 +92,19 @@ const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopDa
             return 0;
         });
       });
+      
+      setSoldModalOpen(false);
+      setProductToSell(null);
     } catch (error) {
+      console.error(error);
       alert("Error al actualizar estado: " + error.message);
     }
+  };
+
+  const formatDate = (timestamp) => {
+    if (!timestamp) return '';
+    const date = timestamp.seconds ? new Date(timestamp.seconds * 1000) : new Date(timestamp);
+    return date.toLocaleString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
   };
 
   const handleMarkAsAvailable = async (product) => {
@@ -201,11 +224,17 @@ const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopDa
               
               {/* INFO DE VENTA PARA EL DUEÑO */}
               {isOwner && product.status === 'sold' && (
-                <div className="mb-3 p-2 bg-yellow-50 border border-yellow-100 rounded text-xs text-yellow-800 flex items-start gap-2">
-                    <User size={14} className="mt-0.5 flex-shrink-0" />
-                    <span>
-                        <strong>Comprador:</strong> {product.buyerInfo || "Sin datos"}
-                    </span>
+                <div className="mb-3 p-3 bg-gray-100 border border-gray-200 rounded-lg text-xs text-gray-700 flex flex-col gap-1.5">
+                    <div className="flex items-center gap-2 font-bold text-gray-800">
+                        <User size={14} />
+                        <span>{product.buyerInfo || "Sin nota de venta"}</span>
+                    </div>
+                    {product.soldAt && (
+                        <div className="flex items-center gap-2 text-gray-500 border-t border-gray-200 pt-1.5 mt-0.5">
+                            <Calendar size={12} />
+                            <span>{formatDate(product.soldAt)}</span>
+                        </div>
+                    )}
                 </div>
               )}
 
@@ -224,7 +253,7 @@ const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopDa
                     {/* BOTÓN DE ESTADO */}
                     {product.status !== 'sold' ? (
                         <button 
-                            onClick={() => handleMarkAsSold(product)}
+                            onClick={(e) => { e.stopPropagation(); openSoldModal(product); }}
                             className="w-full bg-gray-800 text-white py-2 rounded-lg text-sm font-medium hover:bg-gray-900 transition-colors flex items-center justify-center gap-2"
                         >
                             <Archive size={16} /> Marcar como Vendido
@@ -280,6 +309,52 @@ const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopDa
       </div>
 
       {/* MODAL DE PAGO INTELIGENTE */}
+      {/* --- MODAL DE VENTA (ESTILO CONFIRMAR COMPRA) --- */}
+      {soldModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden scale-100 animate-in zoom-in-95 duration-200">
+                
+                {/* Header */}
+                <div className="bg-gray-50 px-5 py-4 border-b border-gray-100 flex justify-between items-center">
+                    <h3 className="font-bold text-gray-800 text-lg">Confirmar Venta</h3>
+                    <button onClick={() => setSoldModalOpen(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                        <X size={24} />
+                    </button>
+                </div>
+
+                {/* Body */}
+                <div className="p-6">
+                    <div className="text-center mb-6">
+                        <p className="text-sm text-gray-500 mb-1">Vas a marcar como vendido:</p>
+                        <p className="font-bold text-gray-800 text-lg line-clamp-1">{productToSell?.title}</p>
+                    </div>
+
+                    <div className="mb-6">
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+                            Nota / Comprador (Opcional)
+                        </label>
+                        <input 
+                            type="text" 
+                            value={soldNote}
+                            onChange={(e) => setSoldNote(e.target.value)}
+                            placeholder="Ej: Juan Pérez, Seña 50%..."
+                            className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition-all text-gray-800"
+                            autoFocus
+                        />
+                    </div>
+
+                    <button 
+                        onClick={handleConfirmSold}
+                        className="w-full py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-colors shadow-md flex items-center justify-center gap-2"
+                    >
+                        <Archive size={18} />
+                        Confirmar Venta
+                    </button>
+                </div>
+            </div>
+        </div>
+      )}
+
       {selectedProduct && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
           <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl relative overflow-hidden">
