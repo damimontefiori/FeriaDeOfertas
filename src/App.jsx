@@ -309,6 +309,9 @@ function App() {
           
           <footer className="bg-white p-4 text-center text-gray-500 text-sm border-t">
             <p>&copy; {new Date().getFullYear()} FeriaDeOfertas</p>
+            <p className="mt-1">
+              Desarrollado por <a href="https://www.linkedin.com/in/damian-montefiori/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Damian Montefiori</a>
+            </p>
             <p className="text-xs mt-1">v{appVersion}</p>
           </footer>
 
