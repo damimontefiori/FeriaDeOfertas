@@ -47,7 +47,7 @@ const generateShopId = (name) => {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
   
-  const suffix = Math.random().toString(36).substring(2, 5);
+  const suffix = Math.random().toString(36).substring(2, 6);
   return `${cleanName}-${suffix}`;
 };
 
