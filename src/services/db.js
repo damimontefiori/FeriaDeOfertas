@@ -56,12 +56,16 @@ export const createShop = async (userId, shopData) => {
   const customId = generateShopId(shopData.name);
   const shopRef = doc(db, "shops", customId);
 
-  // 2. Creamos el documento con setDoc
+  // 2. Formateo Simple: Limpiamos y agregamos 549
+  const cleanNumber = shopData.whatsapp.replace(/\D/g, ''); 
+  const finalWhatsapp = `549${cleanNumber}`;
+
+  // 3. Creamos el documento con setDoc
   await setDoc(shopRef, {
     ownerId: userId,
     name: shopData.name,
     description: shopData.description || "",
-    whatsapp: shopData.whatsapp,
+    whatsapp: finalWhatsapp,
     location: shopData.location,
     alias: shopData.alias || "",
     cbu: shopData.cbu || "",

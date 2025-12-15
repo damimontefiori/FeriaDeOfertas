@@ -19,6 +19,18 @@ const CreateShop = ({ onShopCreated }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (formData.name.length < 4 || formData.name.length > 20) {
+      alert("El nombre de la tienda debe tener entre 4 y 20 caracteres.");
+      return;
+    }
+
+    // Validar CBU si se ingresó
+    if (formData.cbu && formData.cbu.length !== 22) {
+      alert("El CBU/CVU debe tener exactamente 22 números.");
+      return;
+    }
+
     setLoading(true);
     try {
       addLog('Creando tienda...', 'info');
@@ -58,11 +70,14 @@ const CreateShop = ({ onShopCreated }) => {
             <input
               type="text"
               required
+              minLength={4}
+              maxLength={20}
               className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none"
               placeholder="Ej: Modas Claudia"
               value={formData.name}
               onChange={e => setFormData({...formData, name: e.target.value})}
             />
+            <p className="mt-1 text-xs text-gray-500">Entre 4 y 20 caracteres.</p>
           </div>
 
           <div>
@@ -80,14 +95,20 @@ const CreateShop = ({ onShopCreated }) => {
               <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
                 <Phone size={16}/> WhatsApp
               </label>
-              <input
-                type="tel"
-                required
-                className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none"
-                placeholder="+54 9 11 1234 5678"
-                value={formData.whatsapp}
-                onChange={e => setFormData({...formData, whatsapp: e.target.value})}
-              />
+              <div className="relative rounded-md shadow-sm">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none bg-gray-50 rounded-l-md border-r border-gray-300 px-2">
+                  <span className="text-gray-500 sm:text-sm font-medium">+54 9</span>
+                </div>
+                <input
+                  type="tel"
+                  required
+                  className="block w-full pl-20 pr-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  placeholder="11 1234 5678"
+                  value={formData.whatsapp}
+                  onChange={e => setFormData({...formData, whatsapp: e.target.value})}
+                />
+              </div>
+              <p className="mt-1 text-xs text-gray-500">Ingresa tu número sin 0 ni 15.</p>
             </div>
 
             <div>
@@ -132,9 +153,14 @@ const CreateShop = ({ onShopCreated }) => {
                 type="text" 
                 className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none"
                 value={formData.cbu}
-                onChange={e => setFormData({...formData, cbu: e.target.value})}
-                placeholder="000000..."
+                onChange={e => {
+                  const val = e.target.value.replace(/\D/g, '');
+                  if (val.length <= 22) setFormData({...formData, cbu: val});
+                }}
+                placeholder="0000000000000000000000"
+                inputMode="numeric"
               />
+              <p className="mt-1 text-xs text-gray-500">Debe tener exactamente 22 números.</p>
             </div>
           </div>
         </div>
