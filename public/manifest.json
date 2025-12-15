@@ -1,11 +1,11 @@
 {
-  "name": "Feria de Ofertas",
-  "short_name": "Ofertas",
+  "name": "Tienda Veloz",
+  "short_name": "TiendaVeloz",
   "description": "Tu catálogo de ofertas locales",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#4f46e5",
+  "theme_color": "#252D61",
   "icons": [
     {
       "src": "/icon-192.png",

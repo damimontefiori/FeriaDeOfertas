@@ -86,7 +86,7 @@ const Dashboard = () => {
   if (!user) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] p-4">
-        <h1 className="text-4xl font-bold text-blue-600 mb-4">FeriaDeOfertas</h1>
+        <h1 className="text-4xl font-bold text-blue-600 mb-4">Tienda Veloz</h1>
         <p className="text-xl text-gray-600 mb-8 text-center max-w-md">
           Crea tu propia tienda virtual en segundos y comparte tus productos con amigos.
         </p>
@@ -142,7 +142,7 @@ const Dashboard = () => {
               <div>
                   <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
                       <Store className="text-[#75D2C1]" size={28} /> {/* Icono color Menta */}
-                      Feria de Ofertas
+                      Tienda Veloz
                   </h1>
                   <p className="text-blue-100 text-sm mt-1 opacity-90">Panel de Vendedor</p>
               </div>
@@ -351,7 +351,7 @@ function App() {
           </main>
           
           <footer className="bg-white p-4 text-center text-gray-500 text-sm border-t">
-            <p>&copy; {new Date().getFullYear()} FeriaDeOfertas</p>
+            <p>&copy; {new Date().getFullYear()} Tienda Veloz</p>
             <p className="mt-1">
               Desarrollado por <a href="https://www.linkedin.com/in/damian-montefiori/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Damian Montefiori</a>
             </p>

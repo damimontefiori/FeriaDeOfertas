@@ -24,8 +24,14 @@ const ShopView = () => {
       try {
         const shopData = await getShopById(shopId);
         setShop(shopData);
+        if (shopData) {
+          document.title = shopData.name;
+        } else {
+          document.title = 'Tienda Veloz';
+        }
       } catch (error) {
         addLog(`Error cargando tienda: ${error.message}`, 'error');
+        document.title = 'Tienda Veloz';
       } finally {
         setLoading(false);
       }
