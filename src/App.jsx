@@ -8,7 +8,7 @@ import AddProduct from './components/AddProduct';
 import ProductList from './components/ProductList';
 import ShopView from './pages/ShopView';
 import { deleteProduct, getShopById, updateShop } from './services/db';
-import { Copy, Share2, Check, Plus, ExternalLink, Settings, Palette, X } from 'lucide-react';
+import { Copy, Share2, Check, Plus, ExternalLink, Settings, Palette, X, LogOut, Store } from 'lucide-react';
 import { themes } from './utils/themes';
 
 const Dashboard = () => {
@@ -132,159 +132,202 @@ const Dashboard = () => {
   // Usuario con tienda (Dashboard Vendedor)
   if (userProfile && userProfile.shopId) {
     return (
-      <div className="container mx-auto p-4">
-        <header className="flex justify-between items-center mb-8 pb-4 border-b">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800">Mi Tienda</h1>
-            <p className="text-sm text-gray-500">Gestiona tus productos</p>
-          </div>
-          <div className="flex items-center gap-4">
-            <button 
-              onClick={() => navigate(`/shop/${userProfile.shopId}`)}
-              className="text-blue-600 hover:underline text-sm"
-            >
-              Ver mi tienda pública
-            </button>
-            <span className="text-sm hidden md:inline text-gray-400">|</span>
-            <span className="text-sm hidden md:inline">{user.email}</span>
-            <button 
-              onClick={() => setShowSettings(true)}
-              className="p-2 hover:bg-gray-100 rounded-full text-gray-600 transition-colors"
-              title="Configuración"
-            >
-              <Settings size={20} />
-            </button>
-            <button onClick={logout} className="bg-gray-200 px-3 py-1 rounded text-sm hover:bg-gray-300">Salir</button>
-          </div>
-        </header>
-
-        {/* SETTINGS MODAL */}
-        {showSettings && shopData && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
-              <div className="flex justify-between items-center p-4 border-b bg-gray-50">
-                <h3 className="font-bold text-lg flex items-center gap-2 text-gray-800">
-                  <Settings size={20} /> Configurar Tienda
-                </h3>
-                <button onClick={() => setShowSettings(false)} className="text-gray-400 hover:text-gray-600">
-                  <X size={24} />
-                </button>
-              </div>
+      <div className="min-h-screen bg-gray-50">
+        {/* --- NUEVO HEADER MEJORADO --- */}
+        <div className="bg-gradient-to-r from-[#252D61] to-[#5A99CB] pb-12 pt-8 px-4 shadow-lg text-white">
+          <div className="max-w-4xl mx-auto">
+            <div className="flex justify-between items-center mb-6">
               
-              <div className="p-6">
-                <div className="mb-6">
-                  <label className="block text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
-                    <Palette size={18} className="text-blue-600" /> 
-                    Tema Visual
-                  </label>
-                  <div className="grid grid-cols-1 gap-3">
-                    {Object.entries(themes).map(([key, t]) => (
-                      <button
-                        key={key}
-                        onClick={() => handleUpdateTheme(key)}
-                        className={`flex items-center justify-between p-3 rounded-lg border-2 transition-all ${
-                          (shopData.theme || 'classic') === key 
-                          ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm' 
-                          : 'border-gray-100 hover:border-gray-300 text-gray-600 hover:bg-gray-50'
-                        }`}
-                      >
-                        <span className="font-medium">{t.name}</span>
-                        {(shopData.theme || 'classic') === key && <Check size={18} />}
-                      </button>
-                    ))}
-                  </div>
+              {/* Título / Logo */}
+              <div>
+                  <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+                      <Store className="text-[#75D2C1]" size={28} /> {/* Icono color Menta */}
+                      Feria de Ofertas
+                  </h1>
+                  <p className="text-blue-100 text-sm mt-1 opacity-90">Panel de Vendedor</p>
+              </div>
+
+              {/* Perfil de Usuario */}
+              <div className="flex items-center gap-3 bg-white/10 px-4 py-2 rounded-full backdrop-blur-sm border border-white/10">
+                  <span className="text-sm font-medium hidden sm:block">{user?.displayName}</span>
+                  {user?.photoURL ? (
+                      <img 
+                          src={user.photoURL} 
+                          alt="Perfil" 
+                          className="w-8 h-8 rounded-full border-2 border-[#75D2C1]" // Borde color Menta
+                      />
+                  ) : (
+                      <div className="w-8 h-8 rounded-full bg-[#75D2C1] text-[#252D61] flex items-center justify-center font-bold">
+                          {user?.displayName?.charAt(0) || 'U'}
+                      </div>
+                  )}
+                  <button 
+                      onClick={logout}
+                      className="ml-2 text-blue-100 hover:text-white transition-colors"
+                      title="Cerrar Sesión"
+                  >
+                      <LogOut size={18} />
+                  </button>
+              </div>
+            </div>
+
+            {/* Action Bar inside Header */}
+            <div className="bg-white/10 rounded-xl p-4 backdrop-blur-md border border-white/10 flex flex-wrap gap-3 items-center justify-between">
+                <div className="text-sm">
+                    <p className="text-blue-100">Tu tienda:</p>
+                    <p className="font-bold text-lg leading-tight">{shopData?.name || 'Cargando...'}</p>
                 </div>
-                
-                <div className="text-xs text-gray-500 bg-blue-50 p-3 rounded border border-blue-100">
-                  ℹ️ El tema seleccionado cambiará el fondo y el encabezado de tu tienda pública.
+                <div className="flex gap-2">
+                    <button 
+                        onClick={() => navigate(`/shop/${userProfile.shopId}`)}
+                        className="bg-[#75D2C1] hover:bg-[#64c4b2] text-[#252D61] px-4 py-2 rounded-lg text-sm font-bold transition-colors flex items-center gap-2 shadow-sm"
+                    >
+                        <ExternalLink size={16} /> Ver Tienda Pública
+                    </button>
+                    <button 
+                        onClick={() => setShowSettings(true)}
+                        className="bg-white/20 hover:bg-white/30 text-white px-3 py-2 rounded-lg transition-colors"
+                        title="Configuración"
+                    >
+                        <Settings size={20} />
+                    </button>
                 </div>
-              </div>
             </div>
-          </div>
-        )}
 
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-8">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="text-center md:text-left">
-              <h2 className="text-lg font-bold text-gray-800">¡Tu tienda está lista! 🚀</h2>
-              <p className="text-sm text-gray-500">Comparte el enlace para empezar a vender.</p>
-            </div>
-            
-            <div className="flex items-center gap-2 w-full md:w-auto bg-gray-50 p-2 rounded-lg border border-gray-200 max-w-full">
-              <div className="flex-grow md:flex-grow-0 overflow-hidden min-w-0">
-                <p className="text-sm text-gray-600 truncate md:max-w-[300px] select-all font-mono">
-                  {shopUrl}
-                </p>
-              </div>
-              
-              <div className="flex gap-1 shrink-0">
-                <button 
-                  onClick={handleCopyLink}
-                  className="p-2 hover:bg-white rounded-md text-gray-600 transition-colors shadow-sm"
-                  title="Copiar enlace"
-                >
-                  {copiedLink ? <Check size={18} className="text-green-600" /> : <Copy size={18} />}
-                </button>
-                
-                <button 
-                  onClick={handleShare}
-                  className="p-2 hover:bg-white rounded-md text-blue-600 transition-colors shadow-sm"
-                  title="Compartir"
-                >
-                  <Share2 size={18} />
-                </button>
-
-                <a 
-                  href={shopUrl} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="p-2 hover:bg-white rounded-md text-gray-600 transition-colors shadow-sm"
-                  title="Abrir en nueva pestaña"
-                >
-                  <ExternalLink size={18} />
-                </a>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-6 flex justify-center md:justify-start border-t pt-6">
-             <button 
-              onClick={() => {
-                setEditingProduct(null);
-                setShowAddProduct(true);
-              }}
-              className="bg-blue-600 text-white px-5 py-2.5 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 font-medium shadow-sm shadow-blue-200"
-            >
-              <Plus size={20} />
-              Agregar Nuevo Producto
-            </button>
           </div>
         </div>
 
-        <h3 className="text-lg font-bold mb-4 text-gray-700">Mis Productos</h3>
-        <ProductList 
-          shopId={userProfile.shopId} 
-          refreshTrigger={refreshProducts} 
-          isOwner={true}
-          onDelete={handleDeleteProduct}
-          onEdit={handleEditProduct}
-        />
+        {/* Contenedor principal (se superpone un poco al header para efecto moderno) */}
+        <div className="max-w-4xl mx-auto px-4 -mt-6 relative z-10">
+          
+          {/* SETTINGS MODAL */}
+          {showSettings && shopData && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+                <div className="flex justify-between items-center p-4 border-b bg-gray-50">
+                  <h3 className="font-bold text-lg flex items-center gap-2 text-gray-800">
+                    <Settings size={20} /> Configurar Tienda
+                  </h3>
+                  <button onClick={() => setShowSettings(false)} className="text-gray-400 hover:text-gray-600">
+                    <X size={24} />
+                  </button>
+                </div>
+                
+                <div className="p-6">
+                  <div className="mb-6">
+                    <label className="block text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                      <Palette size={18} className="text-blue-600" /> 
+                      Tema Visual
+                    </label>
+                    <div className="grid grid-cols-1 gap-3">
+                      {Object.entries(themes).map(([key, t]) => (
+                        <button
+                          key={key}
+                          onClick={() => handleUpdateTheme(key)}
+                          className={`flex items-center justify-between p-3 rounded-lg border-2 transition-all ${
+                            (shopData.theme || 'classic') === key 
+                            ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm' 
+                            : 'border-gray-100 hover:border-gray-300 text-gray-600 hover:bg-gray-50'
+                          }`}
+                        >
+                          <span className="font-medium">{t.name}</span>
+                          {(shopData.theme || 'classic') === key && <Check size={18} />}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <div className="text-xs text-gray-500 bg-blue-50 p-3 rounded border border-blue-100">
+                    ℹ️ El tema seleccionado cambiará el fondo y el encabezado de tu tienda pública.
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
-        {showAddProduct && (
-          <AddProduct 
-            onClose={() => {
-              setShowAddProduct(false);
-              setEditingProduct(null);
-            }} 
-            onProductAdded={() => {
-              setShowAddProduct(false);
-              setEditingProduct(null);
-              setRefreshProducts(prev => prev + 1);
-              addLog(editingProduct ? 'Producto actualizado' : 'Producto agregado', 'info');
-            }}
-            productToEdit={editingProduct}
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-8">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="text-center md:text-left">
+                <h2 className="text-lg font-bold text-gray-800">¡Tu tienda está lista! 🚀</h2>
+                <p className="text-sm text-gray-500">Comparte el enlace para empezar a vender.</p>
+              </div>
+              
+              <div className="flex items-center gap-2 w-full md:w-auto bg-gray-50 p-2 rounded-lg border border-gray-200 max-w-full">
+                <div className="flex-grow md:flex-grow-0 overflow-hidden min-w-0">
+                  <p className="text-sm text-gray-600 truncate md:max-w-[300px] select-all font-mono">
+                    {shopUrl}
+                  </p>
+                </div>
+                
+                <div className="flex gap-1 shrink-0">
+                  <button 
+                    onClick={handleCopyLink}
+                    className="p-2 hover:bg-white rounded-md text-gray-600 transition-colors shadow-sm"
+                    title="Copiar enlace"
+                  >
+                    {copiedLink ? <Check size={18} className="text-green-600" /> : <Copy size={18} />}
+                  </button>
+                  
+                  <button 
+                    onClick={handleShare}
+                    className="p-2 hover:bg-white rounded-md text-blue-600 transition-colors shadow-sm"
+                    title="Compartir"
+                  >
+                    <Share2 size={18} />
+                  </button>
+
+                  <a 
+                    href={shopUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="p-2 hover:bg-white rounded-md text-gray-600 transition-colors shadow-sm"
+                    title="Abrir en nueva pestaña"
+                  >
+                    <ExternalLink size={18} />
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-center md:justify-start border-t pt-6">
+               <button 
+                onClick={() => {
+                  setEditingProduct(null);
+                  setShowAddProduct(true);
+                }}
+                className="bg-blue-600 text-white px-5 py-2.5 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 font-medium shadow-sm shadow-blue-200"
+              >
+                <Plus size={20} />
+                Agregar Nuevo Producto
+              </button>
+            </div>
+          </div>
+
+          <h3 className="text-lg font-bold mb-4 text-gray-700">Mis Productos</h3>
+          <ProductList 
+            shopId={userProfile.shopId} 
+            refreshTrigger={refreshProducts} 
+            isOwner={true}
+            onDelete={handleDeleteProduct}
+            onEdit={handleEditProduct}
           />
-        )}
+
+          {showAddProduct && (
+            <AddProduct 
+              onClose={() => {
+                setShowAddProduct(false);
+                setEditingProduct(null);
+              }} 
+              onProductAdded={() => {
+                setShowAddProduct(false);
+                setEditingProduct(null);
+                setRefreshProducts(prev => prev + 1);
+                addLog(editingProduct ? 'Producto actualizado' : 'Producto agregado', 'info');
+              }}
+              productToEdit={editingProduct}
+            />
+          )}
+        </div>
       </div>
     );
   }
