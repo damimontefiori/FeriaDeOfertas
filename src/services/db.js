@@ -39,25 +39,41 @@ export const getUserProfile = async (uid) => {
 
 // --- SHOPS ---
 
+// Helper para generar ID amigable
+const generateShopId = (name) => {
+  const cleanName = name
+    .toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  
+  const suffix = Math.random().toString(36).substring(2, 5);
+  return `${cleanName}-${suffix}`;
+};
+
 export const createShop = async (userId, shopData) => {
-  // 1. Create the shop document
-  const shopRef = await addDoc(collection(db, "shops"), {
+  // 1. Generamos ID amigable
+  const customId = generateShopId(shopData.name);
+  const shopRef = doc(db, "shops", customId);
+
+  // 2. Creamos el documento con setDoc
+  await setDoc(shopRef, {
     ownerId: userId,
     name: shopData.name,
     description: shopData.description || "",
     whatsapp: shopData.whatsapp,
     location: shopData.location,
-    alias: shopData.alias || "", // Nuevo campo
-    cbu: shopData.cbu || "",     // Nuevo campo
+    alias: shopData.alias || "",
+    cbu: shopData.cbu || "",
     createdAt: serverTimestamp(),
     active: true
   });
 
-  // 2. Link shop to user
+  // 3. Link shop to user
   const userRef = doc(db, "users", userId);
-  await updateDoc(userRef, { shopId: shopRef.id });
+  await updateDoc(userRef, { shopId: customId });
 
-  return shopRef.id;
+  return customId;
 };
 
 export const getShopByOwner = async (userId) => {
