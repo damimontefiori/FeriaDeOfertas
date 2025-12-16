@@ -56,26 +56,27 @@ const ShopView = () => {
         <div className="container mx-auto max-w-[1600px] relative z-20">
             <div className="flex justify-between items-start gap-4">
                 <div className="flex items-center gap-4">
-                    <div className="bg-white/20 p-4 rounded-full backdrop-blur-sm relative shadow-inner">
+                    <div className="bg-white/20 p-4 rounded-full backdrop-blur-sm relative shadow-inner shrink-0">
                         <Store size={40} className="text-white" />
                         {themeStyles.snow && <span className="absolute -top-3 -right-2 text-3xl transform rotate-12 filter drop-shadow-md">🎅</span>}
                         {themeStyles.leaf && <span className="absolute -top-3 -right-2 text-3xl transform -rotate-12 filter drop-shadow-md">🌻</span>}
                     </div>
-                    <div>
-                        <h1 className="text-3xl md:text-4xl font-bold drop-shadow-sm">{shop.name}</h1>
-                        <p className="opacity-90 text-lg">{shop.description}</p>
-                    </div>
+                    <h1 className="text-3xl md:text-4xl font-bold drop-shadow-sm">{shop.name}</h1>
                 </div>
 
                 {isOwner && (
                     <button 
                         onClick={() => navigate('/')}
-                        className="bg-black/20 hover:bg-black/30 text-white px-4 py-2 rounded-full backdrop-blur-md transition-all flex items-center gap-2 text-sm font-medium border border-white/10 shadow-sm whitespace-nowrap mt-2"
+                        className="bg-black/20 hover:bg-black/30 text-white px-4 py-2 rounded-full backdrop-blur-md transition-all flex items-center gap-2 text-sm font-medium border border-white/10 shadow-sm whitespace-nowrap mt-2 shrink-0"
                     >
                         <ArrowLeft size={18} /> Volver
                     </button>
                 )}
             </div>
+            
+            {shop.description && (
+                <p className="opacity-90 text-lg mt-4 ml-1">{shop.description}</p>
+            )}
         </div>
       </div>
 

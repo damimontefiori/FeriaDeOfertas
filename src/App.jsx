@@ -135,7 +135,7 @@ const Dashboard = () => {
       <div className="min-h-screen bg-gray-50">
         {/* --- NUEVO HEADER MEJORADO --- */}
         <div className="bg-gradient-to-r from-[#252D61] to-[#5A99CB] pb-12 pt-8 px-4 shadow-lg text-white">
-          <div className="max-w-4xl mx-auto">
+          <div className="max-w-[1600px] mx-auto">
             <div className="flex justify-between items-center mb-6">
               
               {/* Título / Logo */}
@@ -198,7 +198,7 @@ const Dashboard = () => {
         </div>
 
         {/* Contenedor principal (se superpone un poco al header para efecto moderno) */}
-        <div className="max-w-4xl mx-auto px-4 -mt-6 relative z-10">
+        <div className="max-w-[1600px] mx-auto px-4 -mt-6 relative z-10">
           
           {/* SETTINGS MODAL */}
           {showSettings && shopData && (
