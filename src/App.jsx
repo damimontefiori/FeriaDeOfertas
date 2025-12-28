@@ -270,7 +270,7 @@ const Dashboard = () => {
           {/* SETTINGS MODAL */}
           {showSettings && shopData && (
             <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-              <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-200 max-h-[90vh] flex flex-col">
+              <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-200 h-[80vh] flex flex-col">
                 
                 {/* Header & Tabs */}
                 <div className="border-b bg-gray-50 shrink-0">
