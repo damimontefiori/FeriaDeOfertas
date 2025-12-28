@@ -150,6 +150,15 @@ const Dashboard = () => {
     }
   };
 
+  const hasChanges = shopData && (
+    editFormData.name !== (shopData.name || '') ||
+    editFormData.description !== (shopData.description || '') ||
+    editFormData.whatsapp !== (shopData.whatsapp ? shopData.whatsapp.replace(/^549/, '') : '') ||
+    editFormData.location !== (shopData.location || '') ||
+    editFormData.alias !== (shopData.alias || '') ||
+    editFormData.cbu !== (shopData.cbu || '')
+  );
+
   if (!user) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] p-4">
@@ -399,8 +408,12 @@ const Dashboard = () => {
 
                       <button
                         type="submit"
-                        disabled={savingSettings}
-                        className="w-full py-3 bg-[#252D61] text-white rounded-lg font-bold hover:bg-[#1a214d] transition-colors flex items-center justify-center gap-2"
+                        disabled={savingSettings || !hasChanges}
+                        className={`w-full py-3 rounded-lg font-bold transition-colors flex items-center justify-center gap-2 ${
+                          savingSettings || !hasChanges
+                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                            : 'bg-[#252D61] text-white hover:bg-[#1a214d]'
+                        }`}
                       >
                         {savingSettings ? 'Guardando...' : <><Save size={18} /> Guardar Cambios</>}
                       </button>
