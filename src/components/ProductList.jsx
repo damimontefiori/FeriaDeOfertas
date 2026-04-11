@@ -213,6 +213,11 @@ const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopDa
     });
   }
   const hasAnyCategory = Object.keys(categoryCounts).length > 0;
+  const sortOptions = [
+    { value: 'recent', label: 'Mas recientes' },
+    { value: 'price-asc', label: 'Precio menor' },
+    { value: 'new-first', label: 'Nuevos primero' }
+  ];
 
   if (loading) return <div className="text-center py-12 text-gray-500">Cargando catálogo...</div>;
 
@@ -226,7 +231,7 @@ const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopDa
 
   return (
     <>
-      <div className="flex flex-col gap-3 mb-4 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex flex-col gap-3 mb-4">
         {hasAnyCategory ? (
           <div className="flex flex-wrap gap-2">
             <button
@@ -257,19 +262,25 @@ const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopDa
           <div />
         )}
 
-        <div className="w-full sm:w-auto sm:min-w-[220px]">
-          <label className="block text-xs font-bold uppercase tracking-wide text-gray-500 mb-1">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">
             Ordenar por
-          </label>
-          <select
-            value={sortBy}
-            onChange={(event) => setSortBy(event.target.value)}
-            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 outline-none transition-colors focus:border-[#5A99CB] focus:ring-2 focus:ring-[#5A99CB]"
-          >
-            <option value="recent">Mas recientes</option>
-            <option value="price-asc">Precio menor a mayor</option>
-            <option value="new-first">Nuevos primero</option>
-          </select>
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {sortOptions.map((option) => (
+              <button
+                key={option.value}
+                onClick={() => setSortBy(option.value)}
+                className={`px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all border ${
+                  sortBy === option.value
+                    ? 'bg-[#5A99CB] text-white border-[#5A99CB]'
+                    : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
