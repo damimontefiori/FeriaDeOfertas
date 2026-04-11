@@ -8,6 +8,7 @@ const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopDa
   const [loading, setLoading] = useState(true);
   const [expandedProductId, setExpandedProductId] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState(null);
+  const [sortBy, setSortBy] = useState('recent');
   
   // Modal State
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -167,6 +168,29 @@ const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopDa
     }
   };
 
+  const getTimestampValue = (timestamp) => {
+    if (!timestamp) return 0;
+    if (typeof timestamp.seconds === 'number') return timestamp.seconds;
+    return Math.floor(new Date(timestamp).getTime() / 1000) || 0;
+  };
+
+  const compareProducts = (firstProduct, secondProduct) => {
+    if (firstProduct.status === 'sold' && secondProduct.status !== 'sold') return 1;
+    if (firstProduct.status !== 'sold' && secondProduct.status === 'sold') return -1;
+
+    if (sortBy === 'price-asc') {
+      return Number(firstProduct.price) - Number(secondProduct.price);
+    }
+
+    if (sortBy === 'new-first') {
+      const firstIsNew = firstProduct.condition === 'new' ? 1 : 0;
+      const secondIsNew = secondProduct.condition === 'new' ? 1 : 0;
+      if (firstIsNew !== secondIsNew) return secondIsNew - firstIsNew;
+    }
+
+    return getTimestampValue(secondProduct.createdAt) - getTimestampValue(firstProduct.createdAt);
+  };
+
   // Filtrar productos: El dueño ve todo (vendidos en gris), el público solo ve disponibles
   const visibleProducts = isOwner 
     ? products 
@@ -176,6 +200,8 @@ const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopDa
   const filteredProducts = selectedCategory
     ? visibleProducts.filter(p => p.category === selectedCategory)
     : visibleProducts;
+
+  const sortedProducts = [...filteredProducts].sort(compareProducts);
 
   // Count products per category (for pills)
   const categoryCounts = {};
@@ -200,37 +226,55 @@ const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopDa
 
   return (
     <>
-      {/* Category Filter Pills */}
-      {hasAnyCategory && (
-        <div className="flex flex-wrap gap-2 mb-4">
-          <button
-            onClick={() => setSelectedCategory(null)}
-            className={`px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all border ${
-              selectedCategory === null
-                ? 'bg-[#252D61] text-white border-[#252D61]'
-                : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-            }`}
-          >
-            Todos ({visibleProducts.length})
-          </button>
-          {categories.filter(cat => categoryCounts[cat]).map(cat => (
+      <div className="flex flex-col gap-3 mb-4 sm:flex-row sm:items-start sm:justify-between">
+        {hasAnyCategory ? (
+          <div className="flex flex-wrap gap-2">
             <button
-              key={cat}
-              onClick={() => setSelectedCategory(selectedCategory === cat ? null : cat)}
+              onClick={() => setSelectedCategory(null)}
               className={`px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all border ${
-                selectedCategory === cat
+                selectedCategory === null
                   ? 'bg-[#252D61] text-white border-[#252D61]'
                   : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50'
               }`}
             >
-              {cat} ({categoryCounts[cat]})
+              Todos ({visibleProducts.length})
             </button>
-          ))}
+            {categories.filter(cat => categoryCounts[cat]).map(cat => (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(selectedCategory === cat ? null : cat)}
+                className={`px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all border ${
+                  selectedCategory === cat
+                    ? 'bg-[#252D61] text-white border-[#252D61]'
+                    : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                {cat} ({categoryCounts[cat]})
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div />
+        )}
+
+        <div className="w-full sm:w-auto sm:min-w-[220px]">
+          <label className="block text-xs font-bold uppercase tracking-wide text-gray-500 mb-1">
+            Ordenar por
+          </label>
+          <select
+            value={sortBy}
+            onChange={(event) => setSortBy(event.target.value)}
+            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 outline-none transition-colors focus:border-[#5A99CB] focus:ring-2 focus:ring-[#5A99CB]"
+          >
+            <option value="recent">Mas recientes</option>
+            <option value="price-asc">Precio menor a mayor</option>
+            <option value="new-first">Nuevos primero</option>
+          </select>
         </div>
-      )}
+      </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {filteredProducts.map((product) => (
+        {sortedProducts.map((product) => (
           <div 
             key={product.id} 
             onClick={() => setExpandedProductId(expandedProductId === product.id ? null : product.id)}
