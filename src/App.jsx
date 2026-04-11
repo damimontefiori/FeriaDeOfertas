@@ -63,7 +63,7 @@ const Dashboard = () => {
       });
       setActiveTab('data');
     }
-  }, [showSettings, shopData]);
+  }, [showSettings]);
 
   const handleSaveSettings = async (e) => {
     e.preventDefault();
