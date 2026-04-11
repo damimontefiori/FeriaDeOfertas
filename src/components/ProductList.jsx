@@ -3,10 +3,11 @@ import { getShopProducts, updateProductStatus } from '../services/db';
 import { getImageUrl } from '../services/storage';
 import { Trash2, Edit, ShoppingCart, ExternalLink, Copy, Check, Wallet, MessageCircle, HelpCircle, Archive, User, RotateCcw, X, Calendar } from 'lucide-react';
 
-const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopData }) => {
+const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopData, categories = [] }) => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedProductId, setExpandedProductId] = useState(null);
+  const [selectedCategory, setSelectedCategory] = useState(null);
   
   // Modal State
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -171,6 +172,22 @@ const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopDa
     ? products 
     : products.filter(p => p.status !== 'sold');
 
+  // Category filter
+  const filteredProducts = selectedCategory
+    ? visibleProducts.filter(p => p.category === selectedCategory)
+    : visibleProducts;
+
+  // Count products per category (for pills)
+  const categoryCounts = {};
+  if (categories.length > 0) {
+    visibleProducts.forEach(p => {
+      if (p.category) {
+        categoryCounts[p.category] = (categoryCounts[p.category] || 0) + 1;
+      }
+    });
+  }
+  const hasAnyCategory = Object.keys(categoryCounts).length > 0;
+
   if (loading) return <div className="text-center py-12 text-gray-500">Cargando catálogo...</div>;
 
   if (!visibleProducts || visibleProducts.length === 0) {
@@ -183,8 +200,37 @@ const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopDa
 
   return (
     <>
+      {/* Category Filter Pills */}
+      {hasAnyCategory && (
+        <div className="flex gap-2 mb-4 overflow-x-auto pb-2 -mx-1 px-1">
+          <button
+            onClick={() => setSelectedCategory(null)}
+            className={`px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all border ${
+              selectedCategory === null
+                ? 'bg-[#252D61] text-white border-[#252D61]'
+                : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+            }`}
+          >
+            Todos ({visibleProducts.length})
+          </button>
+          {categories.filter(cat => categoryCounts[cat]).map(cat => (
+            <button
+              key={cat}
+              onClick={() => setSelectedCategory(selectedCategory === cat ? null : cat)}
+              className={`px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all border ${
+                selectedCategory === cat
+                  ? 'bg-[#252D61] text-white border-[#252D61]'
+                  : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              {cat} ({categoryCounts[cat]})
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {visibleProducts.map((product) => (
+        {filteredProducts.map((product) => (
           <div 
             key={product.id} 
             onClick={() => setExpandedProductId(expandedProductId === product.id ? null : product.id)}

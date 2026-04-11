@@ -51,7 +51,7 @@ const compressImage = (file) => {
   });
 };
 
-const AddProduct = ({ onClose, onProductAdded, productToEdit }) => {
+const AddProduct = ({ onClose, onProductAdded, productToEdit, shopCategories = [] }) => {
   const { userProfile } = useAuth();
   const { addLog } = useLogger();
   const [loading, setLoading] = useState(false);
@@ -62,7 +62,8 @@ const AddProduct = ({ onClose, onProductAdded, productToEdit }) => {
     title: '',
     description: '',
     price: '',
-    condition: 'used'
+    condition: 'used',
+    category: ''
   });
 
   useEffect(() => {
@@ -71,7 +72,8 @@ const AddProduct = ({ onClose, onProductAdded, productToEdit }) => {
         title: productToEdit.title,
         description: productToEdit.description || '',
         price: productToEdit.price ? productToEdit.price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") : '',
-        condition: productToEdit.condition || 'used'
+        condition: productToEdit.condition || 'used',
+        category: productToEdit.category || ''
       });
       if (productToEdit.finalImageUrl) {
         setImagePreview(productToEdit.finalImageUrl);
@@ -125,9 +127,13 @@ const AddProduct = ({ onClose, onProductAdded, productToEdit }) => {
         
         // 2. Llamar a nuestra función backend
         // Nota: En local esto requiere 'netlify dev'. En producción funciona directo.
+        const requestBody = { imageBase64: base64String };
+        if (shopCategories.length > 0) {
+          requestBody.existingCategories = shopCategories;
+        }
         const response = await fetch('/.netlify/functions/analyze-image', {
           method: 'POST',
-          body: JSON.stringify({ imageBase64: base64String }),
+          body: JSON.stringify(requestBody),
         });
 
         if (!response.ok) {
@@ -141,7 +147,8 @@ const AddProduct = ({ onClose, onProductAdded, productToEdit }) => {
         setFormData(prev => ({
           ...prev,
           title: data.title || prev.title,
-          description: data.description || prev.description
+          description: data.description || prev.description,
+          ...(data.category && shopCategories.includes(data.category) ? { category: data.category } : {})
         }));
         
         addLog("¡Datos generados por IA!", "success");
@@ -290,6 +297,23 @@ const AddProduct = ({ onClose, onProductAdded, productToEdit }) => {
                 NUEVO ✨
             </button>
           </div>
+
+          {/* Category Selector */}
+          {shopCategories.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Categoría</label>
+              <select
+                className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none transition-shadow bg-white text-base"
+                value={formData.category}
+                onChange={e => setFormData({...formData, category: e.target.value})}
+              >
+                <option value="">Sin categoría</option>
+                {shopCategories.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Título del Producto</label>

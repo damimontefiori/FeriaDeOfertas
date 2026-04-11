@@ -9,7 +9,8 @@ import {
   addDoc, 
   updateDoc,
   deleteDoc,
-  serverTimestamp 
+  serverTimestamp,
+  writeBatch 
 } from "firebase/firestore";
 import { db } from "./firebase";
 
@@ -113,6 +114,7 @@ export const addProduct = async (shopId, productData) => {
     description: productData.description,
     price: Number(productData.price),
     condition: productData.condition || 'used',
+    category: productData.category || '',
     images: productData.images || [], // Array of R2 URLs
     status: 'available', // available, pending, sold, inactive
     createdAt: serverTimestamp()
@@ -136,6 +138,7 @@ export const updateProduct = async (productId, productData) => {
     description: productData.description,
     price: Number(productData.price),
     condition: productData.condition || 'used',
+    category: productData.category || '',
     // Solo actualizamos imágenes si se envían nuevas (o lógica que decidas)
     // Por simplicidad, si envías images, se sobrescriben.
     ...(productData.images && { images: productData.images }),
@@ -159,6 +162,40 @@ export const updateProductStatus = async (productId, status, buyerInfo = "") => 
     buyerInfo: buyerInfo,
     soldAt: status === 'sold' ? serverTimestamp() : null
   });
+};
+
+// --- CATEGORIES ---
+
+export const updateShopCategories = async (shopId, categories) => {
+  const shopRef = doc(db, "shops", shopId);
+  await updateDoc(shopRef, {
+    categories,
+    updatedAt: serverTimestamp()
+  });
+};
+
+export const batchUpdateProductCategories = async (updates) => {
+  const batch = writeBatch(db);
+  updates.forEach(({ productId, category }) => {
+    const productRef = doc(db, "products", productId);
+    batch.update(productRef, { category });
+  });
+  await batch.commit();
+};
+
+export const clearCategoryFromProducts = async (shopId, categoryName) => {
+  const q = query(
+    collection(db, "products"),
+    where("shopId", "==", shopId),
+    where("category", "==", categoryName)
+  );
+  const snapshot = await getDocs(q);
+  if (snapshot.empty) return;
+  const batch = writeBatch(db);
+  snapshot.docs.forEach(d => {
+    batch.update(d.ref, { category: '' });
+  });
+  await batch.commit();
 };
 
 // --- ORDERS (Simple flow) ---

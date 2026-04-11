@@ -99,6 +99,7 @@ const ShopView = () => {
           shopId={shopId} 
           isOwner={false} 
           shopData={shop}
+          categories={shop.categories || []}
         />
       </div>
     </div>
