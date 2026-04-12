@@ -10,7 +10,7 @@ import SnowEffect from '../components/SnowEffect';
 import LeafEffect from '../components/LeafEffect';
 
 const ShopView = () => {
-  const { shopId } = useParams();
+  const { shopId, productId } = useParams();
   const navigate = useNavigate();
   const { user, loginWithGoogle } = useAuth();
   const { addLog } = useLogger();
@@ -100,6 +100,8 @@ const ShopView = () => {
           isOwner={false} 
           shopData={shop}
           categories={shop.categories || []}
+          activeProductId={productId}
+          onCloseActiveProduct={() => navigate(`/shop/${shopId}`)}
         />
       </div>
     </div>

@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { getShopProducts, updateProductStatus } from '../services/db';
 import { getImageUrl } from '../services/storage';
-import { Trash2, Edit, ShoppingCart, ExternalLink, Copy, Check, Wallet, MessageCircle, HelpCircle, Archive, User, RotateCcw, X, Calendar } from 'lucide-react';
+import { Trash2, Edit, ShoppingCart, ExternalLink, Copy, Check, Wallet, MessageCircle, HelpCircle, Archive, User, RotateCcw, X, Calendar, Share2 } from 'lucide-react';
 
-const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopData, categories = [] }) => {
+const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopData, categories = [], activeProductId = null, onCloseActiveProduct }) => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedProductId, setExpandedProductId] = useState(null);
@@ -12,6 +12,7 @@ const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopDa
   
   // Modal State
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [selectedProductView, setSelectedProductView] = useState(null);
   const [copiedField, setCopiedField] = useState(null);
 
   // Sold Modal State
@@ -132,6 +133,7 @@ const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopDa
 
   const openWhatsApp = (product, type = 'inquiry') => {
     if (!shopData?.whatsapp) return;
+    const productLink = getProductLink(product);
     
     let message = '';
     if (type === 'payment') {
@@ -139,7 +141,7 @@ const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopDa
     } else if (type === 'buy_direct') {
       message = `Hola! 👋 Quiero comprar *${product.title}*. ¿Cómo coordinamos el pago y entrega?`;
     } else {
-      message = `Hola! 👋 Tengo una consulta sobre *${product.title}*.`;
+      message = `Hola! 👋 Tengo una consulta sobre *${product.title}*.\n\n🔗 Link directo al producto: ${productLink}`;
     }
     
     const url = `https://wa.me/${shopData.whatsapp}?text=${encodeURIComponent(message)}`;
@@ -167,6 +169,32 @@ const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopDa
       window.open("https://www.mercadopago.com.ar", "_blank");
     }
   };
+
+  const getProductLink = (product) => {
+    const currentShopId = shopId || shopData?.id;
+    return `${window.location.origin}/shop/${currentShopId}/p/${product.id}`;
+  };
+
+  const shareProductOnWhatsApp = (product) => {
+    const link = getProductLink(product);
+    const text = `Mira este producto en Tienda Veloz:\n\n${product.title}\n$${Number(product.price).toLocaleString()}\n\n${link}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+  };
+
+  const closeProductView = () => {
+    setSelectedProductView(null);
+    if (onCloseActiveProduct) {
+      onCloseActiveProduct();
+    }
+  };
+
+  useEffect(() => {
+    if (!activeProductId) return;
+    const product = products.find((item) => item.id === activeProductId);
+    if (product) {
+      setSelectedProductView(product);
+    }
+  }, [activeProductId, products]);
 
   const getTimestampValue = (timestamp) => {
     if (!timestamp) return 0;
@@ -367,6 +395,13 @@ const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopDa
                             <RotateCcw size={16} /> Marcar Disponible
                         </button>
                     )}
+
+                    <button
+                      onClick={() => shareProductOnWhatsApp(product)}
+                      className="w-full bg-white text-gray-700 border border-gray-300 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Share2 size={16} /> Compartir por WhatsApp
+                    </button>
                   </div>
                 ) : (
                   <>
@@ -394,6 +429,14 @@ const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopDa
                         >
                           <MessageCircle size={18} />
                           Preguntar por WhatsApp
+                        </button>
+
+                        <button
+                          onClick={() => shareProductOnWhatsApp(product)}
+                          className="w-full bg-white text-gray-700 border border-gray-300 py-2.5 px-4 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 font-medium"
+                        >
+                          <Share2 size={18} />
+                          Compartir
                         </button>
                       </>
                     ) : (
@@ -453,6 +496,68 @@ const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopDa
                     </button>
                 </div>
             </div>
+        </div>
+      )}
+
+      {selectedProductView && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50 animate-in fade-in duration-200">
+          <div className="bg-white w-full sm:max-w-2xl sm:rounded-2xl shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h3 className="font-bold text-gray-800 text-lg line-clamp-1">{selectedProductView.title}</h3>
+              <button
+                onClick={closeProductView}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="overflow-y-auto">
+              <div className="bg-gray-100 aspect-square relative">
+                {selectedProductView.finalImageUrl ? (
+                  <img
+                    src={selectedProductView.finalImageUrl}
+                    alt={selectedProductView.title}
+                    className={`w-full h-full object-cover ${selectedProductView.status === 'sold' ? 'grayscale' : ''}`}
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-gray-400">
+                    <span className="text-4xl">📷</span>
+                  </div>
+                )}
+
+                <div className={`absolute top-3 right-3 px-3 py-1 rounded-full text-sm font-bold shadow-sm ${selectedProductView.status === 'sold' ? 'bg-red-600 text-white' : 'bg-white/90 text-gray-800'}`}>
+                  {selectedProductView.status === 'sold' ? 'VENDIDO' : `$${Number(selectedProductView.price).toLocaleString()}`}
+                </div>
+              </div>
+
+              <div className="p-4 space-y-4">
+                <p className="text-gray-600 whitespace-pre-wrap">{selectedProductView.description}</p>
+
+                {selectedProductView.status !== 'sold' ? (
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => openWhatsApp(selectedProductView, 'inquiry')}
+                      className="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2 font-medium"
+                    >
+                      <MessageCircle size={18} /> Preguntar por WhatsApp
+                    </button>
+
+                    <button
+                      onClick={() => shareProductOnWhatsApp(selectedProductView)}
+                      className="w-full bg-white text-gray-700 border border-gray-300 py-3 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 font-medium"
+                    >
+                      <Share2 size={18} /> Compartir producto
+                    </button>
+                  </div>
+                ) : (
+                  <div className="w-full bg-gray-100 text-gray-500 py-3 rounded-lg flex items-center justify-center gap-2 font-bold">
+                    🚫 Agotado
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

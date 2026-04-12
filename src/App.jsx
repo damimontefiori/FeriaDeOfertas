@@ -861,6 +861,7 @@ function App() {
             <Routes>
               <Route path="/" element={<Dashboard />} />
               <Route path="/shop/:shopId" element={<ShopView />} />
+              <Route path="/shop/:shopId/p/:productId" element={<ShopView />} />
             </Routes>
           </main>
           
