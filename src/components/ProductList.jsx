@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { getShopProducts, updateProductStatus } from '../services/db';
 import { getImageUrl } from '../services/storage';
-import { Trash2, Edit, ShoppingCart, ExternalLink, Copy, Check, Wallet, MessageCircle, HelpCircle, Archive, User, RotateCcw, X, Calendar, Share2 } from 'lucide-react';
+import { Trash2, Edit, ShoppingCart, ExternalLink, Copy, Check, Wallet, MessageCircle, HelpCircle, Archive, User, RotateCcw, X, Calendar, Share2, Maximize2 } from 'lucide-react';
 
 const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopData, categories = [], activeProductId = null, onCloseActiveProduct }) => {
   const [products, setProducts] = useState([]);
@@ -14,6 +14,7 @@ const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopDa
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [selectedProductView, setSelectedProductView] = useState(null);
   const [copiedField, setCopiedField] = useState(null);
+  const [lightboxProduct, setLightboxProduct] = useState(null);
 
   // Sold Modal State
   const [soldModalOpen, setSoldModalOpen] = useState(false);
@@ -196,6 +197,15 @@ const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopDa
     }
   }, [activeProductId, products]);
 
+  useEffect(() => {
+    if (!lightboxProduct) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setLightboxProduct(null);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [lightboxProduct]);
+
   const getTimestampValue = (timestamp) => {
     if (!timestamp) return 0;
     if (typeof timestamp.seconds === 'number') return timestamp.seconds;
@@ -344,6 +354,17 @@ const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopDa
                   }`}>
                       {product.condition === 'new' ? 'Nuevo ✨' : 'Usado'}
                   </div>
+              )}
+
+              {product.finalImageUrl && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); setLightboxProduct(product); }}
+                  className="absolute bottom-2 right-2 bg-white/90 backdrop-blur-sm text-gray-700 p-1.5 rounded-full shadow-sm hover:bg-white hover:text-gray-900 transition-colors"
+                  title="Ver foto completa"
+                  aria-label="Ver foto completa"
+                >
+                  <Maximize2 size={16} />
+                </button>
               )}
             </div>
             
@@ -529,6 +550,17 @@ const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopDa
                 <div className={`absolute top-3 right-3 px-3 py-1 rounded-full text-sm font-bold shadow-sm ${selectedProductView.status === 'sold' ? 'bg-red-600 text-white' : 'bg-white/90 text-gray-800'}`}>
                   {selectedProductView.status === 'sold' ? 'VENDIDO' : `$${Number(selectedProductView.price).toLocaleString()}`}
                 </div>
+
+                {selectedProductView.finalImageUrl && (
+                  <button
+                    onClick={() => setLightboxProduct(selectedProductView)}
+                    className="absolute bottom-3 right-3 bg-white/90 backdrop-blur-sm text-gray-700 p-2 rounded-full shadow-sm hover:bg-white hover:text-gray-900 transition-colors"
+                    title="Ver foto completa"
+                    aria-label="Ver foto completa"
+                  >
+                    <Maximize2 size={18} />
+                  </button>
+                )}
               </div>
 
               <div className="p-4 space-y-4">
@@ -660,6 +692,28 @@ const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopDa
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {lightboxProduct && (
+        <div
+          onClick={() => setLightboxProduct(null)}
+          className="fixed inset-0 bg-black/90 z-[60] flex items-center justify-center p-4 animate-in fade-in duration-200"
+        >
+          <button
+            onClick={() => setLightboxProduct(null)}
+            className="absolute top-4 right-4 text-white/80 hover:text-white transition-colors z-10"
+            aria-label="Cerrar"
+          >
+            <X size={32} />
+          </button>
+
+          <img
+            src={lightboxProduct.finalImageUrl}
+            alt={lightboxProduct.title}
+            onClick={(e) => e.stopPropagation()}
+            className="max-h-[90vh] max-w-full object-contain rounded-lg"
+          />
         </div>
       )}
     </>
