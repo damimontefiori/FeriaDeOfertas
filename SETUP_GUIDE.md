@@ -173,7 +173,7 @@ VITE_R2_SECRET_ACCESS_KEY=
 VITE_R2_BUCKET_NAME=
 VITE_R2_PUBLIC_DOMAIN=     # opcional; si falta se usan URLs firmadas (1h)
 
-VITE_APP_VERSION=0.2.1-beta
+VITE_APP_VERSION=0.2.1-beta   # ignorada: vite.config.js la inyecta desde package.json
 ```
 
 ### Netlify Functions (solo servidor)
@@ -215,6 +215,6 @@ npm run build      # → dist/
 3. `SECRETS_SCAN_ENABLED = "false"` en `netlify.toml` desactiva el escaneo de secretos del build.
 4. No hay reglas de seguridad de Firestore versionadas en el repo.
 5. `orders` está implementada en `db.js` pero nunca se invoca.
-6. Sin tests automatizados. Los `test-*.js` de la raíz son scripts manuales de prueba de OpenAI/funciones.
+6. Sin tests automatizados y sin configuración de ESLint (`npm run lint` falla). Los `test-*.js` de prueba manual de OpenAI/funciones están en `.gitignore` (solo existen en local).
 7. El modelo soporta múltiples imágenes por producto (`images[]`), pero la UI maneja una sola y la reemplaza al editar.
 8. `getShopProducts` trae todos los productos de la tienda y filtra/ordena en cliente — no escala con catálogos grandes.
