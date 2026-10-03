@@ -10,6 +10,7 @@ import ShopView from './pages/ShopView';
 import { deleteProduct, getShopById, getShopProducts, updateShop, updateShopCategories, batchUpdateProductCategories, clearCategoryFromProducts } from './services/db';
 import { Copy, Share2, Check, Plus, ExternalLink, Settings, Palette, X, LogOut, Store, Phone, MapPin, CreditCard, Save, Tag, Wand2, Loader2, Trash2 } from 'lucide-react';
 import { themes } from './utils/themes';
+import { deleteFiles } from './services/storage';
 
 const Dashboard = () => {
   const { user, userProfile, profileError, loginWithGoogle, logout, refreshProfile } = useAuth();
@@ -245,20 +246,26 @@ const Dashboard = () => {
   };
   // --- END CATEGORY MANAGEMENT ---
 
-  const handleDeleteProduct = async (productId) => {
+  const handleDeleteProduct = async (product) => {
     if (!window.confirm("¿Estás seguro de que quieres eliminar este producto permanentemente?")) {
       return;
     }
 
     try {
-      await deleteProduct(productId);
+      await deleteProduct(product.id);
       setRefreshProducts(prev => prev + 1);
       addLog('Producto eliminado correctamente', 'info');
     } catch (error) {
       console.error("Error eliminando producto:", error);
       alert("Hubo un error al intentar borrar el producto.");
       addLog(`Error eliminando producto: ${error.message}`, 'error');
+      return;
     }
+
+    // Con el producto ya borrado de Firestore, limpiar sus imágenes en R2 (best-effort)
+    deleteFiles(product.images || []).catch(err => {
+      addLog(`No se pudo borrar la imagen del producto: ${err.message}`, 'error');
+    });
   };
 
   const handleCopyLink = () => {

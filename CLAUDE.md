@@ -69,6 +69,7 @@ npm run preview
   - Renombrar una categoría exigiría migrar los productos. Hoy no existe esa función.
   - Cualquier categoría que venga de la IA se valida contra la lista de la tienda antes de aplicarla.
 - **Imágenes:** `images[]` guarda **keys** de R2 (`<uuid>.<ext>`), no URLs. Resolvelas siempre con `getImageUrl()` (dominio público si está configurado; si no, URL firmada de 1 h). `ProductList` sigue soportando el campo legacy `imageUrl` como fallback. La UI usa solo `images[0]` y, al editar con una foto nueva, reemplaza el array.
+- **Limpieza en R2:** cada vez que una imagen deja de estar referenciada (borrar un producto, reemplazar su foto o fallar al guardar después de subir), se borra con `deleteFiles()` de `storage.js`. Se borra **después** de persistir en Firestore y es best-effort: si falla, se loguea con `addLog` y no bloquea al usuario. Mantené este orden en flujos nuevos.
 - **Compresión:** toda imagen pasa por `compressImage` (canvas, máx. 1200 px, JPEG q=0.8) antes de ir a R2 o a la IA.
 
 ## Netlify Functions (IA)
@@ -91,11 +92,9 @@ El cliente las llama con `fetch('/.netlify/functions/<nombre>', { method: 'POST'
 
 ## Trampas conocidas (bugs y restos detectados)
 
-- `AddProduct.handleMagicFill`: el `fetch` corre dentro de `reader.onloadend`, fuera del `try/catch`. Si la Function falla, el error queda sin capturar y el spinner de IA gira para siempre.
-- Borrar un producto o reemplazar su foto **no borra el objeto en R2**, así que quedan archivos huérfanos.
 - El modal de deep link (`selectedProductView` en `ProductList`) no tiene botón "Comprar", solo "Preguntar" y "Compartir".
 - `handleShare` (App.jsx) no hace nada si el navegador no soporta la Web Share API (no tiene fallback).
-- Textos residuales de etapas anteriores: `'Mi Tienda en FeriaDeOfertas'` en `handleShare`, log `"Consultando a Azure Vision..."` en `AddProduct` (ahora es OpenAI), el bloque comentado de Azure en `analyze-image.js` e `index.html`, que apunta a `/vite.svg`, un archivo inexistente.
+- Textos residuales de etapas anteriores: `'Mi Tienda en FeriaDeOfertas'` en `handleShare`, el bloque comentado de Azure en `analyze-image.js` e `index.html`, que apunta a `/vite.svg`, un archivo inexistente.
 - `orders` / `createOrder` en `db.js` no se usan.
 - `getShopProducts` trae todo el catálogo de la tienda y además pide una URL firmada por producto en cada carga (si no hay dominio público). Filtrado y orden se hacen en el cliente.
 - `AuthProvider` no renderiza nada hasta resolver el estado de auth, también en la tienda pública.

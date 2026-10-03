@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { addProduct, updateProduct } from '../services/db';
-import { uploadFile } from '../services/storage';
+import { uploadFile, deleteFiles } from '../services/storage';
 import { useLogger } from '../context/LoggerContext';
 import { PackagePlus, X, Upload, Image as ImageIcon, Wand2, Loader2, Edit } from 'lucide-react';
 
@@ -48,6 +48,16 @@ const compressImage = (file) => {
         }, 'image/jpeg', 0.8);
       };
     };
+  });
+};
+
+// Devuelve el contenido del archivo en base64, sin la cabecera data:image/...
+const readFileAsBase64 = (file) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
   });
 };
 
@@ -107,7 +117,7 @@ const AddProduct = ({ onClose, onProductAdded, productToEdit, shopCategories = [
     setFormData({ ...formData, price: formattedValue });
   };
 
-  // --- LÓGICA DE IA (AZURE) ---
+  // --- LÓGICA DE IA (OpenAI vía Netlify Function) ---
   const handleMagicFill = async () => {
     if (files.length === 0) {
       alert("Por favor, sube una imagen primero.");
@@ -115,50 +125,44 @@ const AddProduct = ({ onClose, onProductAdded, productToEdit, shopCategories = [
     }
 
     setAiLoading(true);
-    addLog("Consultando a Azure Vision...", "info");
+    addLog("Consultando a la IA...", "info");
 
     try {
       // 1. Leer archivo como Base64
-      const reader = new FileReader();
-      reader.readAsDataURL(files[0]);
-      
-      reader.onloadend = async () => {
-        const base64String = reader.result.split(',')[1]; // Quitar cabecera data:image...
-        
-        // 2. Llamar a nuestra función backend
-        // Nota: En local esto requiere 'netlify dev'. En producción funciona directo.
-        const requestBody = { imageBase64: base64String };
-        if (shopCategories.length > 0) {
-          requestBody.existingCategories = shopCategories;
-        }
-        const response = await fetch('/.netlify/functions/analyze-image', {
-          method: 'POST',
-          body: JSON.stringify(requestBody),
-        });
+      const base64String = await readFileAsBase64(files[0]);
 
-        if (!response.ok) {
-          const err = await response.json();
-          throw new Error(err.details || "Error en el servidor");
-        }
+      // 2. Llamar a nuestra función backend
+      // Nota: En local esto requiere 'netlify dev'. En producción funciona directo.
+      const requestBody = { imageBase64: base64String };
+      if (shopCategories.length > 0) {
+        requestBody.existingCategories = shopCategories;
+      }
+      const response = await fetch('/.netlify/functions/analyze-image', {
+        method: 'POST',
+        body: JSON.stringify(requestBody),
+      });
 
-        const data = await response.json();
-        
-        // 3. Rellenar formulario
-        setFormData(prev => ({
-          ...prev,
-          title: data.title || prev.title,
-          description: data.description || prev.description,
-          ...(data.category && shopCategories.includes(data.category) ? { category: data.category } : {})
-        }));
-        
-        addLog("¡Datos generados por IA!", "success");
-        setAiLoading(false);
-      };
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.details || "Error en el servidor");
+      }
 
+      const data = await response.json();
+
+      // 3. Rellenar formulario
+      setFormData(prev => ({
+        ...prev,
+        title: data.title || prev.title,
+        description: data.description || prev.description,
+        ...(data.category && shopCategories.includes(data.category) ? { category: data.category } : {})
+      }));
+
+      addLog("¡Datos generados por IA!", "success");
     } catch (error) {
       console.error(error);
       addLog(`Error IA: ${error.message}`, "error");
       alert("No se pudo analizar la imagen. (Si estás en local, asegúrate de usar 'netlify dev')");
+    } finally {
       setAiLoading(false);
     }
   };
@@ -178,17 +182,21 @@ const AddProduct = ({ onClose, onProductAdded, productToEdit, shopCategories = [
     setLoading(true);
     addLog(productToEdit ? 'Actualizando producto...' : 'Iniciando carga de producto...', 'info');
 
+    // Para no dejar imágenes huérfanas en R2 si algo falla a mitad de camino
+    const uploadedKeys = [];
+    let productSaved = false;
+
     try {
       // 1. Subir imágenes a R2 (si hay nuevas)
       let imageUrls = productToEdit ? (productToEdit.images || []) : [];
-      
+
       if (files.length > 0) {
-        imageUrls = []; // Si sube nueva, reemplazamos la anterior (simple)
         for (const file of files) {
           addLog(`Subiendo imagen: ${file.name}...`, 'info');
           const url = await uploadFile(file);
-          imageUrls.push(url);
+          uploadedKeys.push(url);
         }
+        imageUrls = uploadedKeys; // Si sube nueva, reemplazamos la anterior (simple)
       }
 
       // 2. Guardar producto en Firestore
@@ -206,11 +214,25 @@ const AddProduct = ({ onClose, onProductAdded, productToEdit, shopCategories = [
         await addProduct(userProfile.shopId, productData);
         addLog('Producto creado exitosamente', 'success');
       }
-      
+      productSaved = true;
+
+      // 3. Con el producto ya guardado, borrar de R2 la imagen reemplazada (best-effort)
+      if (productToEdit && uploadedKeys.length > 0) {
+        deleteFiles(productToEdit.images || []).catch(err => {
+          addLog(`No se pudo borrar la imagen anterior: ${err.message}`, 'error');
+        });
+      }
+
       if (onProductAdded) onProductAdded();
       if (onClose) onClose();
 
     } catch (error) {
+      // Si el producto no se guardó, las imágenes recién subidas no las referencia nadie
+      if (!productSaved && uploadedKeys.length > 0) {
+        deleteFiles(uploadedKeys).catch(err => {
+          addLog(`No se pudieron limpiar las imágenes subidas: ${err.message}`, 'error');
+        });
+      }
       console.error("Error detallado:", error);
       addLog(`Error: ${error.message}`, 'error');
       alert(`Hubo un error: ${error.message}`);

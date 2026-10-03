@@ -1,5 +1,5 @@
 // src/services/storage.js
-import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { v4 as uuidv4 } from 'uuid';
 
@@ -49,6 +49,33 @@ export const uploadFile = async (file) => {
   } catch (error) {
     console.error("Error uploading to R2:", error);
     throw error;
+  }
+};
+
+const deleteFile = async (key) => {
+  // Misma estrategia que la subida: URL firmada + fetch nativo
+  const command = new DeleteObjectCommand({
+    Bucket: R2_BUCKET_NAME,
+    Key: key,
+  });
+  const signedUrl = await getSignedUrl(r2Client, command, { expiresIn: 600 });
+  const response = await fetch(signedUrl, { method: 'DELETE' });
+
+  if (!response.ok) {
+    throw new Error(`Error borrando ${key}: ${response.status} ${response.statusText}`);
+  }
+};
+
+// Borra imágenes del bucket. Ignora URLs absolutas (no son keys de R2).
+// Intenta todas aunque alguna falle y al final lanza un único error.
+export const deleteFiles = async (paths = []) => {
+  const keys = paths.filter(path => path && !path.startsWith('http'));
+  const results = await Promise.allSettled(keys.map(deleteFile));
+  const failed = results.filter(result => result.status === 'rejected');
+
+  if (failed.length > 0) {
+    console.error("Error deleting from R2:", failed.map(result => result.reason));
+    throw new Error(`No se pudieron borrar ${failed.length} imagen(es) de R2`);
   }
 };
 
