@@ -8,6 +8,7 @@ import { Store, MapPin, MessageCircle, ArrowLeft } from 'lucide-react';
 import { themes } from '../utils/themes';
 import SnowEffect from '../components/SnowEffect';
 import LeafEffect from '../components/LeafEffect';
+import { useImageUrl } from '../hooks/useImageUrl';
 
 const ShopView = () => {
   const { shopId, productId } = useParams();
@@ -16,6 +17,7 @@ const ShopView = () => {
   const { addLog } = useLogger();
   const [shop, setShop] = useState(null);
   const [loading, setLoading] = useState(true);
+  const logoUrl = useImageUrl(shop?.logo);
 
   const isOwner = user && shop && user.uid === shop.ownerId;
 
@@ -55,19 +57,29 @@ const ShopView = () => {
         
         <div className="container mx-auto max-w-[1600px] relative z-20">
             <div className="flex justify-between items-start gap-4">
-                <div className="flex items-center gap-4">
-                    <div className="bg-white/20 p-4 rounded-full backdrop-blur-sm relative shadow-inner shrink-0">
-                        <Store size={40} className="text-white" />
+                <div className="flex items-center gap-4 min-w-0">
+                    <div className="relative shrink-0">
+                        {logoUrl ? (
+                            <img
+                                src={logoUrl}
+                                alt={`Logo de ${shop.name}`}
+                                className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-white object-contain p-1 shadow-md"
+                            />
+                        ) : (
+                            <div className={`${themeStyles.badge} p-4 rounded-full backdrop-blur-sm shadow-inner`}>
+                                <Store size={40} />
+                            </div>
+                        )}
                         {themeStyles.snow && <span className="absolute -top-3 -right-2 text-3xl transform rotate-12 filter drop-shadow-md">🎅</span>}
                         {themeStyles.leaf && <span className="absolute -top-3 -right-2 text-3xl transform -rotate-12 filter drop-shadow-md">🌻</span>}
                     </div>
-                    <h1 className="text-3xl md:text-4xl font-bold drop-shadow-sm">{shop.name}</h1>
+                    <h1 className="text-3xl md:text-4xl font-bold drop-shadow-sm break-words min-w-0">{shop.name}</h1>
                 </div>
 
                 {isOwner && (
-                    <button 
+                    <button
                         onClick={() => navigate('/')}
-                        className="bg-black/20 hover:bg-black/30 text-white px-4 py-2 rounded-full backdrop-blur-md transition-all flex items-center gap-2 text-sm font-medium border border-white/10 shadow-sm whitespace-nowrap mt-2 shrink-0"
+                        className={`${themeStyles.backButton} px-4 py-2 rounded-full backdrop-blur-md transition-all flex items-center gap-2 text-sm font-medium border shadow-sm whitespace-nowrap mt-2 shrink-0`}
                     >
                         <ArrowLeft size={18} /> Volver
                     </button>
@@ -93,12 +105,14 @@ const ShopView = () => {
           </div>
         </div>
 
-        <h2 className={`text-2xl font-bold mb-6 px-2 ${shop.theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>Catálogo de Productos</h2>
-        
-        <ProductList 
-          shopId={shopId} 
-          isOwner={false} 
+        <h2 className={`text-2xl font-bold mb-6 px-2 ${themeStyles.heading}`}>Catálogo de Productos</h2>
+
+        <ProductList
+          shopId={shopId}
+          isOwner={false}
           shopData={shop}
+          theme={themeStyles}
+          defaultView={shop.defaultView}
           categories={shop.categories || []}
           activeProductId={productId}
           onCloseActiveProduct={() => navigate(`/shop/${shopId}`)}

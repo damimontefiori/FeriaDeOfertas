@@ -7,10 +7,12 @@ import CreateShop from './components/CreateShop';
 import AddProduct from './components/AddProduct';
 import ProductList from './components/ProductList';
 import ShopView from './pages/ShopView';
-import { deleteProduct, getShopById, getShopProducts, updateShop, updateShopCategories, batchUpdateProductCategories, clearCategoryFromProducts } from './services/db';
-import { Copy, Share2, Check, Plus, ExternalLink, Settings, Palette, X, LogOut, Store, Phone, MapPin, CreditCard, Save, Tag, Wand2, Loader2, Trash2 } from 'lucide-react';
-import { themes } from './utils/themes';
+import CategoryManager from './components/CategoryManager';
+import ShopCustomization from './components/ShopCustomization';
+import { deleteProduct, getShopById, updateShop } from './services/db';
+import { Copy, Share2, Check, Plus, ExternalLink, Settings, Palette, X, LogOut, Store, Phone, MapPin, CreditCard, Save, Tag } from 'lucide-react';
 import { deleteFiles } from './services/storage';
+import { useImageUrl } from './hooks/useImageUrl';
 
 const Dashboard = () => {
   const { user, userProfile, profileError, loginWithGoogle, logout, refreshProfile } = useAuth();
@@ -35,14 +37,7 @@ const Dashboard = () => {
     cbu: ''
   });
 
-  // Categories State
-  const [categoryInput, setCategoryInput] = useState('');
-  const [aiCategoriesLoading, setAiCategoriesLoading] = useState(false);
-  const [aiSuggestion, setAiSuggestion] = useState(null); // { categories, assignments }
-  const [showAssignConfirm, setShowAssignConfirm] = useState(false);
-  const [categoryProducts, setCategoryProducts] = useState([]); // products loaded for AI suggestion
-  const [deletingCategory, setDeletingCategory] = useState(null); // { name, count } for confirm popup
-
+  const logoUrl = useImageUrl(shopData?.logo);
   const shopUrl = userProfile?.shopId ? `${window.location.origin}/shop/${userProfile.shopId}` : '';
 
   useEffect(() => {
@@ -106,16 +101,9 @@ const Dashboard = () => {
     }
   };
 
-  const handleUpdateTheme = async (themeKey) => {
-    if (!shopData) return;
-    try {
-      await updateShop(shopData.id, { theme: themeKey });
-      setShopData(prev => ({ ...prev, theme: themeKey }));
-      addLog(`Tema actualizado a: ${themes[themeKey].name}`, 'success');
-    } catch (error) {
-      console.error("Error updating theme:", error);
-      addLog("Error al cambiar el tema", 'error');
-    }
+  // Los componentes de configuración guardan en Firestore y avisan acá para actualizar el estado local
+  const handleShopUpdated = (updates) => {
+    setShopData(prev => ({ ...prev, ...updates }));
   };
 
   const handleEditProduct = (product) => {
@@ -123,128 +111,7 @@ const Dashboard = () => {
     setShowAddProduct(true);
   };
 
-  // --- CATEGORY MANAGEMENT ---
   const shopCategories = shopData?.categories || [];
-
-  const handleAddCategory = () => {
-    const trimmed = categoryInput.trim();
-    if (!trimmed) return;
-    if (shopCategories.length >= 8) {
-      alert('Máximo 8 categorías permitidas.');
-      return;
-    }
-    if (shopCategories.some(c => c.toLowerCase() === trimmed.toLowerCase())) {
-      alert('Esa categoría ya existe.');
-      return;
-    }
-    const updated = [...shopCategories, trimmed];
-    updateShopCategories(shopData.id, updated).then(() => {
-      setShopData(prev => ({ ...prev, categories: updated }));
-      setCategoryInput('');
-      addLog(`Categoría "${trimmed}" agregada`, 'success');
-    }).catch(err => {
-      addLog(`Error al agregar categoría: ${err.message}`, 'error');
-    });
-  };
-
-  const handleDeleteCategoryClick = async (categoryName) => {
-    // Count products with this category
-    try {
-      const products = await getShopProducts(shopData.id);
-      const count = products.filter(p => p.category === categoryName).length;
-      if (count === 0) {
-        // Delete directly
-        const updated = shopCategories.filter(c => c !== categoryName);
-        await updateShopCategories(shopData.id, updated);
-        setShopData(prev => ({ ...prev, categories: updated }));
-        addLog(`Categoría "${categoryName}" eliminada`, 'info');
-      } else {
-        setDeletingCategory({ name: categoryName, count });
-      }
-    } catch (err) {
-      addLog(`Error: ${err.message}`, 'error');
-    }
-  };
-
-  const handleConfirmDeleteCategory = async () => {
-    if (!deletingCategory) return;
-    try {
-      await clearCategoryFromProducts(shopData.id, deletingCategory.name);
-      const updated = shopCategories.filter(c => c !== deletingCategory.name);
-      await updateShopCategories(shopData.id, updated);
-      setShopData(prev => ({ ...prev, categories: updated }));
-      setRefreshProducts(prev => prev + 1);
-      addLog(`Categoría "${deletingCategory.name}" eliminada. ${deletingCategory.count} productos pasaron a "Sin categoría".`, 'info');
-    } catch (err) {
-      addLog(`Error: ${err.message}`, 'error');
-    } finally {
-      setDeletingCategory(null);
-    }
-  };
-
-  const handleSuggestCategories = async () => {
-    setAiCategoriesLoading(true);
-    setAiSuggestion(null);
-    try {
-      const products = await getShopProducts(shopData.id);
-      if (products.length === 0) {
-        alert('No tenés productos publicados para analizar.');
-        setAiCategoriesLoading(false);
-        return;
-      }
-      setCategoryProducts(products);
-      const response = await fetch('/.netlify/functions/suggest-categories', {
-        method: 'POST',
-        body: JSON.stringify({
-          products: products.map(p => ({ id: p.id, title: p.title, description: p.description || '' }))
-        })
-      });
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.details || 'Error en el servidor');
-      }
-      const data = await response.json();
-      setAiSuggestion(data);
-      addLog('Sugerencias de categorías generadas por IA', 'success');
-    } catch (err) {
-      addLog(`Error IA: ${err.message}`, 'error');
-      alert('No se pudieron generar sugerencias. Intentá de nuevo.');
-    } finally {
-      setAiCategoriesLoading(false);
-    }
-  };
-
-  const handleAcceptSuggestion = async () => {
-    if (!aiSuggestion) return;
-    try {
-      await updateShopCategories(shopData.id, aiSuggestion.categories);
-      setShopData(prev => ({ ...prev, categories: aiSuggestion.categories }));
-      addLog('Categorías guardadas', 'success');
-      // Ask if they want to assign products too
-      setShowAssignConfirm(true);
-    } catch (err) {
-      addLog(`Error: ${err.message}`, 'error');
-    }
-  };
-
-  const handleConfirmAssignProducts = async () => {
-    if (!aiSuggestion?.assignments) return;
-    try {
-      const updates = Object.entries(aiSuggestion.assignments).map(([productId, category]) => ({
-        productId,
-        category
-      }));
-      await batchUpdateProductCategories(updates);
-      setRefreshProducts(prev => prev + 1);
-      addLog(`Categorías asignadas a ${updates.length} productos`, 'success');
-    } catch (err) {
-      addLog(`Error asignando: ${err.message}`, 'error');
-    } finally {
-      setShowAssignConfirm(false);
-      setAiSuggestion(null);
-    }
-  };
-  // --- END CATEGORY MANAGEMENT ---
 
   const handleDeleteProduct = async (product) => {
     if (!window.confirm("¿Estás seguro de que quieres eliminar este producto permanentemente?")) {
@@ -387,9 +254,14 @@ const Dashboard = () => {
 
             {/* Action Bar inside Header */}
             <div className="bg-white/10 rounded-xl p-4 backdrop-blur-md border border-white/10 flex flex-wrap gap-3 items-center justify-between">
-                <div className="text-sm">
-                    <p className="text-blue-100">Tu tienda:</p>
-                    <p className="font-bold text-lg leading-tight">{shopData?.name || 'Cargando...'}</p>
+                <div className="flex items-center gap-3 min-w-0">
+                    {logoUrl && (
+                        <img src={logoUrl} alt="Logo" className="w-11 h-11 rounded-xl bg-white object-contain p-0.5 shrink-0" />
+                    )}
+                    <div className="text-sm min-w-0">
+                        <p className="text-blue-100">Tu tienda:</p>
+                        <p className="font-bold text-lg leading-tight truncate">{shopData?.name || 'Cargando...'}</p>
+                    </div>
                 </div>
                 <div className="flex gap-2">
                     <button 
@@ -442,14 +314,14 @@ const Dashboard = () => {
                       <Store size={16} /> Datos
                     </button>
                     <button 
-                      onClick={() => setActiveTab('theme')}
+                      onClick={() => setActiveTab('customize')}
                       className={`pb-2 px-2 text-sm font-bold border-b-2 transition-colors flex items-center gap-1.5 whitespace-nowrap ${
-                        activeTab === 'theme' 
-                        ? 'border-[#252D61] text-[#252D61]' 
+                        activeTab === 'customize'
+                        ? 'border-[#252D61] text-[#252D61]'
                         : 'border-transparent text-gray-500 hover:text-gray-700'
                       }`}
                     >
-                      <Palette size={16} /> Tema
+                      <Palette size={16} /> Personalizar
                     </button>
                     <button 
                       onClick={() => setActiveTab('categories')}
@@ -568,196 +440,16 @@ const Dashboard = () => {
                     </form>
                   )}
 
-                  {activeTab === 'theme' && (
-                    <div>
-                      <div className="mb-6">
-                        <label className="block text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
-                          <Palette size={18} className="text-blue-600" /> 
-                          Selecciona un Tema
-                        </label>
-                        <div className="grid grid-cols-1 gap-3">
-                          {Object.entries(themes).map(([key, t]) => (
-                            <button
-                              key={key}
-                              onClick={() => handleUpdateTheme(key)}
-                              className={`flex items-center justify-between p-3 rounded-lg border-2 transition-all ${
-                                (shopData.theme || 'classic') === key 
-                                ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm' 
-                                : 'border-gray-100 hover:border-gray-300 text-gray-600 hover:bg-gray-50'
-                              }`}
-                            >
-                              <span className="font-medium">{t.name}</span>
-                              {(shopData.theme || 'classic') === key && <Check size={18} />}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                      
-                      <div className="text-xs text-gray-500 bg-blue-50 p-3 rounded border border-blue-100">
-                        ℹ️ El tema seleccionado cambiará el fondo y el encabezado de tu tienda pública.
-                      </div>
-                    </div>
+                  {activeTab === 'customize' && (
+                    <ShopCustomization shopData={shopData} onShopUpdated={handleShopUpdated} />
                   )}
 
                   {activeTab === 'categories' && (
-                    <div className="space-y-5">
-                      
-                      {/* AI Suggestion - Solo si no hay categorías */}
-                      {shopCategories.length === 0 && (
-                        <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100">
-                          <p className="text-sm text-indigo-700 mb-3">
-                            ¿No sabés qué categorías crear? La IA puede analizar tus productos y sugerirte las mejores.
-                          </p>
-                          {!aiSuggestion ? (
-                            <button
-                              type="button"
-                              onClick={handleSuggestCategories}
-                              disabled={aiCategoriesLoading}
-                              className="w-full py-2.5 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-lg flex items-center justify-center gap-2 font-bold hover:from-indigo-600 hover:to-purple-600 transition-all disabled:opacity-50"
-                            >
-                              {aiCategoriesLoading ? (
-                                <><Loader2 size={18} className="animate-spin" /> Analizando productos...</>
-                              ) : (
-                                <><Wand2 size={18} /> Sugerir con IA ✨</>
-                              )}
-                            </button>
-                          ) : (
-                            <div className="space-y-3">
-                              <p className="text-sm font-bold text-indigo-800">Categorías sugeridas:</p>
-                              <div className="flex flex-wrap gap-2">
-                                {aiSuggestion.categories.map(cat => (
-                                  <span key={cat} className="bg-white px-3 py-1.5 rounded-full text-sm font-medium text-indigo-700 border border-indigo-200">
-                                    {cat}
-                                  </span>
-                                ))}
-                              </div>
-                              <div className="flex gap-2">
-                                <button
-                                  type="button"
-                                  onClick={handleAcceptSuggestion}
-                                  className="flex-1 py-2 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 transition-colors text-sm"
-                                >
-                                  Aceptar
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setAiSuggestion(null)}
-                                  className="flex-1 py-2 bg-gray-200 text-gray-700 rounded-lg font-bold hover:bg-gray-300 transition-colors text-sm"
-                                >
-                                  Descartar
-                                </button>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Assign Confirm Modal */}
-                      {showAssignConfirm && (
-                        <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-200">
-                          <p className="text-sm text-yellow-800 font-medium mb-3">
-                            ¿Querés que la IA también asigne estas categorías a tus productos existentes?
-                          </p>
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              onClick={handleConfirmAssignProducts}
-                              className="flex-1 py-2 bg-yellow-500 text-white rounded-lg font-bold hover:bg-yellow-600 transition-colors text-sm"
-                            >
-                              Sí, asignar
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => { setShowAssignConfirm(false); setAiSuggestion(null); }}
-                              className="flex-1 py-2 bg-gray-200 text-gray-700 rounded-lg font-bold hover:bg-gray-300 transition-colors text-sm"
-                            >
-                              No, lo haré manual
-                            </button>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Category List */}
-                      {shopCategories.length > 0 && (
-                        <div>
-                          <label className="block text-sm font-bold text-[#252D61] mb-2">Categorías actuales</label>
-                          <div className="space-y-2">
-                            {shopCategories.map(cat => (
-                              <div key={cat} className="flex items-center justify-between bg-gray-50 px-3 py-2.5 rounded-lg border border-gray-200">
-                                <span className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                                  <Tag size={14} className="text-[#5A99CB]" /> {cat}
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteCategoryClick(cat)}
-                                  className="text-red-400 hover:text-red-600 transition-colors p-1"
-                                  title="Eliminar categoría"
-                                >
-                                  <Trash2 size={16} />
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Delete Category Confirm */}
-                      {deletingCategory && (
-                        <div className="bg-red-50 p-4 rounded-xl border border-red-200">
-                          <p className="text-sm text-red-800 mb-3">
-                            La categoría <strong>"{deletingCategory.name}"</strong> está asignada a <strong>{deletingCategory.count} producto{deletingCategory.count > 1 ? 's' : ''}</strong>. Si la eliminás, esos productos pasarán a "Sin categoría". ¿Continuar?
-                          </p>
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              onClick={handleConfirmDeleteCategory}
-                              className="flex-1 py-2 bg-red-600 text-white rounded-lg font-bold hover:bg-red-700 transition-colors text-sm"
-                            >
-                              Sí, eliminar
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setDeletingCategory(null)}
-                              className="flex-1 py-2 bg-gray-200 text-gray-700 rounded-lg font-bold hover:bg-gray-300 transition-colors text-sm"
-                            >
-                              Cancelar
-                            </button>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Add Category Input */}
-                      {shopCategories.length < 8 && (
-                        <div>
-                          <label className="block text-sm font-bold text-[#252D61] mb-1.5">Agregar categoría</label>
-                          <div className="flex gap-2">
-                            <input
-                              type="text"
-                              placeholder="Ej: Ropa, Electrónica..."
-                              className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5A99CB] focus:border-[#5A99CB] outline-none transition-all text-base bg-gray-50 focus:bg-white"
-                              value={categoryInput}
-                              onChange={e => setCategoryInput(e.target.value)}
-                              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddCategory(); } }}
-                            />
-                            <button
-                              type="button"
-                              onClick={handleAddCategory}
-                              disabled={!categoryInput.trim()}
-                              className="px-4 py-3 bg-[#252D61] text-white rounded-lg font-bold hover:bg-[#1a214d] transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
-                            >
-                              <Plus size={20} />
-                            </button>
-                          </div>
-                          <p className="mt-1 text-xs text-gray-400">{shopCategories.length}/8 categorías</p>
-                        </div>
-                      )}
-
-                      {shopCategories.length >= 8 && (
-                        <p className="text-xs text-orange-600 bg-orange-50 p-3 rounded border border-orange-100">
-                          Alcanzaste el máximo de 8 categorías. Eliminá alguna para agregar nuevas.
-                        </p>
-                      )}
-                    </div>
+                    <CategoryManager
+                      shopData={shopData}
+                      onCategoriesChange={(categories) => handleShopUpdated({ categories })}
+                      onProductsChanged={() => setRefreshProducts(prev => prev + 1)}
+                    />
                   )}
                 </div>
               </div>
@@ -830,6 +522,7 @@ const Dashboard = () => {
             onDelete={handleDeleteProduct}
             onEdit={handleEditProduct}
             categories={shopCategories}
+            defaultView={shopData?.defaultView}
           />
 
           {showAddProduct && (

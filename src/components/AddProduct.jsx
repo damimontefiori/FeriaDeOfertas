@@ -3,53 +3,8 @@ import { useAuth } from '../context/AuthContext';
 import { addProduct, updateProduct } from '../services/db';
 import { uploadFile, deleteFiles } from '../services/storage';
 import { useLogger } from '../context/LoggerContext';
+import { compressImage } from '../utils/image';
 import { PackagePlus, X, Upload, Image as ImageIcon, Wand2, Loader2, Edit } from 'lucide-react';
-
-// --- HELPER DE COMPRESIÓN ---
-const compressImage = (file) => {
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = (event) => {
-      const img = new Image();
-      img.src = event.target.result;
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 1200; // Suficiente para e-commerce y para la IA
-        const MAX_HEIGHT = 1200;
-        let width = img.width;
-        let height = img.height;
-
-        if (width > height) {
-          if (width > MAX_WIDTH) {
-            height *= MAX_WIDTH / width;
-            width = MAX_WIDTH;
-          }
-        } else {
-          if (height > MAX_HEIGHT) {
-            width *= MAX_HEIGHT / height;
-            height = MAX_HEIGHT;
-          }
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
-
-        // Convertir a Blob (JPEG calidad 0.8)
-        canvas.toBlob((blob) => {
-          // Retornamos un nuevo File con la data comprimida
-          const compressedFile = new File([blob], file.name, {
-            type: 'image/jpeg',
-            lastModified: Date.now(),
-          });
-          resolve(compressedFile);
-        }, 'image/jpeg', 0.8);
-      };
-    };
-  });
-};
 
 // Devuelve el contenido del archivo en base64, sin la cabecera data:image/...
 const readFileAsBase64 = (file) => {

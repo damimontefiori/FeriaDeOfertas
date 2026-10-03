@@ -183,19 +183,34 @@ export const batchUpdateProductCategories = async (updates) => {
   await batch.commit();
 };
 
-export const clearCategoryFromProducts = async (shopId, categoryName) => {
+// Pasa todos los productos de una categoría a otra ('' = sin categoría).
+// Firestore admite hasta 500 escrituras por batch: se commitea por tandas.
+const reassignProductsCategory = async (shopId, fromCategory, toCategory) => {
   const q = query(
     collection(db, "products"),
     where("shopId", "==", shopId),
-    where("category", "==", categoryName)
+    where("category", "==", fromCategory)
   );
   const snapshot = await getDocs(q);
-  if (snapshot.empty) return;
-  const batch = writeBatch(db);
-  snapshot.docs.forEach(d => {
-    batch.update(d.ref, { category: '' });
-  });
-  await batch.commit();
+  for (let i = 0; i < snapshot.docs.length; i += 500) {
+    const batch = writeBatch(db);
+    snapshot.docs.slice(i, i + 500).forEach(d => {
+      batch.update(d.ref, { category: toCategory });
+    });
+    await batch.commit();
+  }
+};
+
+export const clearCategoryFromProducts = (shopId, categoryName) =>
+  reassignProductsCategory(shopId, categoryName, '');
+
+// Renombra una categoría manteniendo su posición y migra sus productos.
+// Primero los productos: si se corta a mitad de camino, repetir el renombre completa lo que faltó.
+export const renameCategory = async (shopId, categories, oldName, newName) => {
+  await reassignProductsCategory(shopId, oldName, newName);
+  const updated = categories.map(c => (c === oldName ? newName : c));
+  await updateShopCategories(shopId, updated);
+  return updated;
 };
 
 // --- ORDERS (Simple flow) ---
