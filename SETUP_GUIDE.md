@@ -2,7 +2,7 @@
 
 > Catálogo digital mobile-first para vendedores informales. El vendedor crea su tienda en segundos, sube una foto y la IA redacta título y descripción. El cierre de venta ocurre por WhatsApp + transferencia (Alias/CBU).
 
-Versión actual: `0.2.1-beta`
+Versión actual: `0.3.0-beta`
 
 ---
 
@@ -29,20 +29,27 @@ Versión actual: `0.2.1-beta`
 ### 2.1 Vendedor — Dashboard (`/`)
 - **Login con Google.** Al autenticarse se crea/lee el perfil en `users`.
 - **Onboarding:** si el usuario no tiene `shopId` se muestra `CreateShop` (nombre 4–20 chars, descripción, WhatsApp, ubicación, Alias, CBU de 22 dígitos).
-- **Panel:** enlace público de la tienda (copiar / Web Share API / abrir en pestaña), alta de productos y grilla de productos propios.
+- **Panel:** logo y nombre de la tienda, enlace público (copiar / Web Share API / abrir en pestaña), alta de productos y catálogo propio con las mismas vistas y paginación que ve el comprador.
 - **Modal de configuración**, 3 pestañas:
   - **Datos:** editar nombre, descripción, WhatsApp, ubicación, Alias, CBU. El botón guardar solo se habilita si hay cambios.
-  - **Tema:** 4 temas disponibles (`classic`, `dark`, `christmas`, `nature`).
-  - **Categorías:** hasta 8 por tienda. Alta manual, borrado con confirmación (avisa cuántos productos quedarán "Sin categoría") y **sugerencia por IA**.
-- **Gestión de productos:** crear, editar, borrar, marcar **Vendido** (nota opcional del comprador + `soldAt`), volver a **Disponible** y compartir por WhatsApp.
+  - **Personalizar** (cada cambio se guarda al instante, por tienda):
+    - **Logo:** subir, cambiar o quitar. Se guarda como PNG (máx. 512 px, conserva la transparencia) y se muestra en el encabezado de la tienda y del panel. El logo reemplazado o quitado se borra de R2.
+    - **Tema:** 7 temas con vista previa: `classic` (Original), `dark` (Oscuro), `christmas` (Navidad, con nieve), `nature` (Naturaleza, con hojas), `pink` (Rosa), `sunset` (Atardecer) y `minimal` (Minimalista). El tema colorea encabezado, fondo, filtros, orden y paginación.
+    - **Vista inicial del catálogo:** grande o compacta.
+    - **Botón "Comprar":** mostrar u ocultar. Oculto, el comprador solo ve "Preguntar por WhatsApp" (o "Consultar" en la vista compacta).
+  - **Categorías:** hasta **30** por tienda (nombre de hasta 30 caracteres, sin duplicados ignorando mayúsculas). Alta, **edición en línea** (renombrar migra los productos de la categoría y conserva su posición; Enter guarda, Escape cancela), borrado con confirmación (avisa cuántos productos quedarán "Sin categoría") y **sugerencia por IA** cuando la tienda no tiene categorías.
+- **Gestión de productos:** crear, editar, borrar, marcar **Vendido** (nota opcional del comprador + `soldAt`), volver a **Disponible** y compartir por WhatsApp. En la vista compacta, el botón "Gestionar" abre el detalle con todas estas acciones.
 
 ### 2.2 Comprador — Tienda pública (`/shop/:shopId` y `/shop/:shopId/p/:productId`)
-- Header con el tema aplicado y efectos decorativos (`SnowEffect` en Navidad, `LeafEffect` en Naturaleza).
+- Encabezado con el tema y el logo de la tienda (o un ícono si no tiene), más efectos decorativos (`SnowEffect` en Navidad, `LeafEffect` en Naturaleza).
 - Ficha con ubicación y aviso de contacto directo.
-- **Catálogo:** grilla responsive (1→4 columnas). Los productos vendidos **no** se muestran al público.
-- **Filtro por categoría** (pills con contadores) y **orden**: Más recientes / Precio menor / Nuevos primero. Los vendidos siempre quedan al final.
-- Click en la card la expande in-place (imagen 4:5 + descripción completa).
-- **Deep link de producto:** `/shop/:shopId/p/:productId` abre el modal de detalle directamente (se usa al compartir).
+- **Catálogo:** los productos vendidos **no** se muestran al público.
+  - **Vista grande:** grilla 1→4 columnas, 12 productos por página. Click en la card la expande in-place (imagen 4:5 + descripción completa).
+  - **Vista compacta:** grilla 2→6 columnas, 24 productos por página. Card con foto, título, precio y un único botón ("Comprar", o "Consultar" si la tienda ocultó Comprar). Click en la card abre el detalle.
+  - La vista inicial la elige la tienda; el comprador la cambia con el selector "Vista grande / Vista compacta".
+  - **Paginación** con anterior/siguiente y números de página (con "…" si hay muchas); al cambiar de página se vuelve al inicio del catálogo. Cambiar filtro, orden o vista vuelve a la página 1.
+- **Filtro por categoría** (pills con contadores; con más de 10 categorías se muestran 10 y un botón "+N más") y **orden**: Más recientes / Precio menor / Nuevos primero. Los vendidos siempre quedan al final.
+- **Detalle de producto (modal):** se abre desde la vista compacta o por deep link `/shop/:shopId/p/:productId` (se usa al compartir). Tiene las mismas acciones que la card: Comprar (si está habilitado), Preguntar y Compartir.
 - **Flujo de compra:**
   - Con Alias o CBU cargados → modal "Confirmar Compra": instrucciones en 3 pasos, copiar Alias/CBU, "Abrir Mercado Pago" (intent en Android / scheme en iOS / web en desktop) y "Ya pagué, enviar comprobante" (WhatsApp con mensaje prearmado).
   - Sin datos de pago → va directo a WhatsApp (`buy_direct`).
@@ -57,7 +64,7 @@ Versión actual: `0.2.1-beta`
 - Ambas usan `response_format: json_object` y responden en español.
 - `analyze-image` solo pide categoría si la tienda ya tiene categorías; el cliente valida que la categoría devuelta exista antes de aplicarla.
 - `suggest-categories` pide el **mínimo** de categorías (máx. 6) y una asignación por producto. Al aceptar, la app pregunta si además quiere aplicar las asignaciones (`writeBatch`).
-- Las imágenes se **comprimen en el navegador** (canvas, máx 1200px, JPEG q=0.8) antes de ir a la IA y a R2.
+- Las imágenes se **comprimen en el navegador** (`utils/image.js`, canvas) antes de ir a la IA y a R2: fotos de producto a JPEG máx. 1200 px q=0.8; logos a PNG máx. 512 px.
 
 ---
 
@@ -76,36 +83,43 @@ main.jsx  → BrowserRouter → App.jsx
 ### Estructura de carpetas
 ```
 src/
-  App.jsx                 Dashboard del vendedor + rutas + footer
+  App.jsx                 Dashboard del vendedor + modal de configuración (pestaña Datos) + rutas + footer
   main.jsx                Bootstrap de React
   components/
     CreateShop.jsx        Onboarding / alta de tienda
-    AddProduct.jsx        Modal alta+edición, compresión de imagen y "Autocompletar con IA"
-    ProductList.jsx       Grilla, filtros, orden y modales de compra/venta/detalle
+    AddProduct.jsx        Modal alta+edición de producto y "Autocompletar con IA"
+    ProductList.jsx       Catálogo: vistas grande/compacta, paginación, filtros, orden y modales de detalle/compra/venta
+    CategoryManager.jsx   Pestaña "Categorías": alta, edición, borrado y sugerencia con IA
+    ShopCustomization.jsx Pestaña "Personalizar": logo, tema, vista inicial y botón Comprar
     SnowEffect.jsx        Decoración tema Navidad
     LeafEffect.jsx        Decoración tema Naturaleza
     SystemLogger.jsx      Consola de logs en pantalla (apagada: SHOW_LOGS = false en App.jsx)
   context/
     AuthContext.jsx       user, userProfile, loading, profileError, login/logout/refresh
     LoggerContext.jsx     addLog(message, type), clearLogs
+  hooks/
+    useImageUrl.js        Resuelve una key de R2 a URL mostrable (logo)
   pages/
     ShopView.jsx          Tienda pública
   services/
     firebase.js           Init de Firebase (auth, db, analytics)
     db.js                 Capa de datos Firestore
-    storage.js            Subida y resolución de URLs de imágenes en R2
+    storage.js            Subida, borrado y resolución de URLs de imágenes en R2
   utils/
-    themes.js             Definición de los 4 temas
+    themes.js             Definición de los 7 temas (clases de Tailwind por zona)
+    image.js              compressImage: redimensionado/recompresión en el navegador
 netlify/functions/
   analyze-image.js        IA: foto → título/descripción/categoría
   suggest-categories.js   IA: productos → categorías + asignaciones
 ```
 
 ### Notas de diseño
-- **No hay estado global de datos.** Cada componente consulta Firestore bajo demanda; el refresco se fuerza con un contador (`refreshTrigger` / `refreshProducts`).
+- **No hay estado global de datos.** Cada componente consulta Firestore bajo demanda; el refresco se fuerza con un contador (`refreshTrigger` / `refreshProducts`). Los componentes de configuración guardan en Firestore y avisan al Dashboard (`onShopUpdated`, `onCategoriesChange`) para actualizar `shopData` local.
 - `SystemLogger` está desactivado con la constante `SHOW_LOGS` en `App.jsx`, pero `addLog` se sigue llamando en toda la app y escribe a consola.
 - El `shopId` es un **slug legible** generado del nombre + sufijo aleatorio (ej. `modas-claudia-a3f9`). Renombrar la tienda **no** cambia el enlace.
 - El WhatsApp se persiste normalizado como `549XXXXXXXXXX`.
+- **Imágenes en R2:** cuando una imagen deja de usarse (borrar producto, reemplazar foto o logo, fallo al guardar después de subir) se borra con `deleteFiles()`, siempre después de persistir en Firestore y en modo best-effort.
+- La paginación, el filtro y el orden se resuelven en el cliente sobre el catálogo completo de la tienda.
 
 ---
 
@@ -128,10 +142,15 @@ netlify/functions/
 | `location` | string | |
 | `alias` | string | uppercase, Mercado Pago |
 | `cbu` | string | 22 dígitos, opcional |
-| `theme` | string | `classic` \| `dark` \| `christmas` \| `nature` |
-| `categories` | string[] | máx. 8 |
+| `theme` | string | `classic` \| `dark` \| `christmas` \| `nature` \| `pink` \| `sunset` \| `minimal`. Ausente = `classic` |
+| `logo` | string | key de R2 del logo (PNG). Ausente o `''` = sin logo |
+| `defaultView` | string | `grid` \| `compact`. Ausente = `grid` |
+| `showBuyButton` | boolean | Ausente = `true` (las tiendas creadas antes de v0.3 lo muestran) |
+| `categories` | string[] | máx. 30 |
 | `active` | boolean | |
 | `createdAt` / `updatedAt` | timestamp | |
+
+> `theme`, `logo`, `defaultView` y `showBuyButton` no se crean con la tienda: se leen siempre con su valor por defecto.
 
 ### `products/{autoId}`
 | Campo | Tipo | Notas |
@@ -150,9 +169,13 @@ netlify/functions/
 `buyerId`, `shopId`, `productId`, `productTitle`, `price`, `status: 'pending_payment'`, `createdAt`.
 
 ### API de `services/db.js`
-`createUserProfile`, `getUserProfile`, `createShop`, `getShopByOwner`, `getShopById`, `updateShop`, `addProduct`, `getShopProducts`, `updateProduct`, `deleteProduct`, `updateProductStatus`, `updateShopCategories`, `batchUpdateProductCategories`, `clearCategoryFromProducts`, `createOrder`.
+`createUserProfile`, `getUserProfile`, `createShop`, `getShopByOwner`, `getShopById`, `updateShop`, `addProduct`, `getShopProducts`, `updateProduct`, `deleteProduct`, `updateProductStatus`, `updateShopCategories`, `batchUpdateProductCategories`, `clearCategoryFromProducts`, `renameCategory`, `createOrder`.
 
-> `getShopProducts(shopId)` filtra `status in ['available','pending','sold']` — los `inactive` nunca se listan. El filtrado dueño/público y el orden se resuelven en el cliente.
+> `getShopProducts(shopId)` filtra `status in ['available','pending','sold']` — los `inactive` nunca se listan. El filtrado dueño/público, el orden y la paginación se resuelven en el cliente.
+> `clearCategoryFromProducts` y `renameCategory` actualizan los productos en tandas de hasta 500 escrituras (límite de `writeBatch`).
+
+### API de `services/storage.js`
+`uploadFile(file) → key`, `deleteFiles(keys)` (ignora URLs absolutas; intenta todas y lanza un único error si alguna falla), `getImageUrl(key) → url`.
 
 ---
 
@@ -173,7 +196,7 @@ VITE_R2_SECRET_ACCESS_KEY=
 VITE_R2_BUCKET_NAME=
 VITE_R2_PUBLIC_DOMAIN=     # opcional; si falta se usan URLs firmadas (1h)
 
-VITE_APP_VERSION=0.2.1-beta   # ignorada: vite.config.js la inyecta desde package.json
+VITE_APP_VERSION=0.3.0-beta   # ignorada: vite.config.js la inyecta desde package.json
 ```
 
 ### Netlify Functions (solo servidor)
@@ -200,7 +223,7 @@ npm run build      # → dist/
 ### Cloudflare R2
 1. Crear bucket.
 2. Generar token S3 API con permisos Object Read/Write.
-3. Aplicar CORS (`apply-cors.js` o `r2-cors.json`) permitiendo `localhost` y el dominio de producción.
+3. Aplicar CORS (`apply-cors.js` o `r2-cors.json`) permitiendo `localhost` y el dominio de producción. Debe incluir `PUT` y `DELETE` (subida y limpieza de imágenes).
 
 ### Netlify
 - Build: `npm run build`, publish: `dist` (ya definido en `netlify.toml`).
@@ -210,11 +233,13 @@ npm run build      # → dist/
 
 ## 7. Deuda Técnica y Riesgos Conocidos
 
-1. **Credenciales de R2 expuestas en el bundle del cliente** (`VITE_R2_ACCESS_KEY_ID` / `VITE_R2_SECRET_ACCESS_KEY`). Cualquiera puede extraerlas del JS y escribir/borrar en el bucket. *Recomendado: mover la firma de URLs a una Netlify Function.*
-2. **`apply-cors.js` tiene endpoint, access key y secret hardcodeados** en el repositorio. Esas claves deberían rotarse y moverse a variables de entorno.
+1. **Credenciales de R2 expuestas en el bundle del cliente** (`VITE_R2_ACCESS_KEY_ID` / `VITE_R2_SECRET_ACCESS_KEY`). Cualquiera puede extraerlas del JS y escribir/borrar en el bucket. *Recomendado: mover la firma de URLs (subida y borrado) a una Netlify Function que verifique al dueño.*
+2. **`apply-cors.js` tiene endpoint, access key y secret hardcodeados** en el repositorio (público). Esas claves deberían rotarse y moverse a variables de entorno.
 3. `SECRETS_SCAN_ENABLED = "false"` en `netlify.toml` desactiva el escaneo de secretos del build.
 4. No hay reglas de seguridad de Firestore versionadas en el repo.
 5. `orders` está implementada en `db.js` pero nunca se invoca.
 6. Sin tests automatizados y sin configuración de ESLint (`npm run lint` falla). Los `test-*.js` de prueba manual de OpenAI/funciones están en `.gitignore` (solo existen en local).
 7. El modelo soporta múltiples imágenes por producto (`images[]`), pero la UI maneja una sola y la reemplaza al editar.
-8. `getShopProducts` trae todos los productos de la tienda y filtra/ordena en cliente — no escala con catálogos grandes.
+8. `getShopProducts` trae todos los productos de la tienda y filtra/ordena/pagina en cliente — no escala con catálogos muy grandes (cientos de productos).
+9. Las categorías se guardan por nombre (no hay IDs): renombrar implica reescribir los productos de esa categoría.
+10. Las imágenes que quedaron huérfanas en R2 antes de la v0.3.0 (borrados y reemplazos previos a la limpieza automática) siguen en el bucket.

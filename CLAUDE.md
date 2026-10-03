@@ -31,13 +31,16 @@ npm run preview
 
 | Necesito cambiar… | Archivo |
 |---|---|
-| Rutas, Dashboard del vendedor, modal de configuración (Datos / Tema / Categorías), gestión de categorías | `src/App.jsx` (componente `Dashboard`, ~850 líneas) |
-| Grilla de productos, filtros, orden, modales de compra / venta / detalle / lightbox, mensajes de WhatsApp, deep link a Mercado Pago | `src/components/ProductList.jsx` (la usan **dueño y público**, según la prop `isOwner`) |
-| Alta/edición de producto, compresión de imagen, llamada a `analyze-image` | `src/components/AddProduct.jsx` |
+| Rutas, Dashboard del vendedor, cáscara del modal de configuración y su pestaña "Datos" | `src/App.jsx` (componente `Dashboard`) |
+| Pestaña "Personalizar": logo, tema, vista inicial del catálogo, botón Comprar | `src/components/ShopCustomization.jsx` |
+| Pestaña "Categorías": alta, edición, borrado, sugerencia con IA, límite `MAX_CATEGORIES` | `src/components/CategoryManager.jsx` |
+| Catálogo: vistas grande/compacta, paginación (`PAGE_SIZE`), filtros, orden, modales de detalle / compra / venta / lightbox, mensajes de WhatsApp, deep link a Mercado Pago | `src/components/ProductList.jsx` (la usan **dueño y público**, según la prop `isOwner`) |
+| Alta/edición de producto, llamada a `analyze-image` | `src/components/AddProduct.jsx` |
 | Onboarding / alta de tienda | `src/components/CreateShop.jsx` |
-| Página pública de la tienda (header con tema) | `src/pages/ShopView.jsx` |
+| Página pública de la tienda (encabezado con tema y logo) | `src/pages/ShopView.jsx` |
 | Cualquier lectura/escritura en Firestore | `src/services/db.js` |
-| Subida de imágenes y resolución de URLs | `src/services/storage.js` |
+| Subida, borrado y resolución de URLs de imágenes | `src/services/storage.js` (+ hook `src/hooks/useImageUrl.js` para mostrar una key) |
+| Compresión de imágenes en el navegador | `src/utils/image.js` (`compressImage`) |
 | Temas visuales | `src/utils/themes.js` (+ `SnowEffect` / `LeafEffect` si el tema tiene animación) |
 | Prompts y llamadas a OpenAI | `netlify/functions/analyze-image.js`, `netlify/functions/suggest-categories.js` |
 
@@ -46,13 +49,14 @@ npm run preview
 - **Idioma:** UI, mensajes de error, prompts de IA, comentarios y commits en **español de Argentina**. El código más nuevo usa voseo ("Tenés", "Querés", "Eliminá"). Usalo en textos nuevos. Identificadores en inglés.
 - **JS + JSX sin TypeScript.** Componentes funcionales con hooks. Todo es ESM (`"type": "module"`), incluidas las Functions (`export const handler`).
 - **Capa de datos:** los componentes **no** importan `firebase/firestore` directamente. Toda operación va por una función exportada de `services/db.js`, y las imágenes por `services/storage.js`. Si necesitás una query nueva, agregala en `db.js`.
-- **Sin estado global de datos** (no hay Redux, React Query ni listeners `onSnapshot`). Cada vista hace fetch al montar. Para refrescar la lista después de una mutación, el padre incrementa un contador (`setRefreshProducts(prev => prev + 1)` → prop `refreshTrigger`). Para cambios en la tienda, el padre actualiza `shopData` local con `setShopData(prev => ({ ...prev, ...updates }))`.
+- **Sin estado global de datos** (no hay Redux, React Query ni listeners `onSnapshot`). Cada vista hace fetch al montar. Para refrescar la lista después de una mutación, el padre incrementa un contador (`setRefreshProducts(prev => prev + 1)` → prop `refreshTrigger`). Para cambios en la tienda, el componente hijo guarda en Firestore y avisa al Dashboard con `onShopUpdated(updates)` / `onCategoriesChange(categories)`, que hace `setShopData(prev => ({ ...prev, ...updates }))`.
+- **Temas:** cada tema de `themes.js` define **todas** las claves (`bg`, `header`, `text`, `heading`, `label`, `badge`, `backButton`, `pill`, `pillAlt`, `ring`) con clases de Tailwind **completas y literales**: Tailwind no genera clases armadas dinámicamente. `ShopView` le pasa el tema a `ProductList` (prop `theme`); el panel del vendedor usa `classic`, que reproduce los colores de marca.
 - **Contextos:** `useAuth()` → `{ user, userProfile, loading, profileError, loginWithGoogle, logout, refreshProfile }`. `useLogger()` → `addLog(msg, 'info' | 'success' | 'error')`, que también escribe en consola. Usá `addLog` para eventos relevantes. El panel `SystemLogger` está oculto (`SHOW_LOGS = false` en `App.jsx`).
 - **Feedback al usuario:** `alert()` / `window.confirm()` para validaciones y errores, o un panel/modal inline para confirmaciones con contexto (ej. borrar categoría, marcar vendido). No hay librería de toasts.
 - **Estilos:** solo clases de Tailwind inline, sin CSS propio (salvo `index.css`) y con `tailwind.config.js` sin extender. Los colores de marca van como valores arbitrarios: `#252D61` (azul marino, primario), `#5A99CB` (azul), `#75D2C1` (menta). Los inputs llevan `text-base` para evitar el zoom automático de iOS. Modales con `fixed inset-0 bg-black/50|60 ... z-50`.
 - **Iconos:** `lucide-react`.
 - **Commits:** Conventional Commits en minúscula y en español: `feat: …`, `fix: …`, `style: …`, `refactor: …`, `chore: …`, `docs: …`.
-- **Versión:** la fuente de verdad es `version` en `package.json` (actual `0.2.1-beta`). `vite.config.js` la inyecta como `import.meta.env.VITE_APP_VERSION`, pisando el `.env`, y se muestra en el footer.
+- **Versión:** la fuente de verdad es `version` en `package.json` (actual `0.3.0-beta`; actualizala con `npm version <x> --no-git-tag-version` para que también cambie `package-lock.json`). `vite.config.js` la inyecta como `import.meta.env.VITE_APP_VERSION`, pisando el `.env`, y se muestra en el footer.
 - **Documentación:** si cambiás funcionalidad, modelo de datos o variables de entorno, actualizá `SETUP_GUIDE.md` en el mismo cambio.
 
 ## Invariantes del dominio (no romper)
@@ -64,13 +68,17 @@ npm run preview
 - **Precio:** se guarda como `number`. La UI lo muestra con separador de miles `.` y lo limpia (`replace(/\./g, '')`) antes de guardar.
 - **Validaciones de la tienda** (nombre de 4 a 20 caracteres, CBU de exactamente 22 dígitos si se carga, alias en mayúsculas) están **duplicadas** en `CreateShop.jsx` y en `handleSaveSettings` de `App.jsx`. Si cambiás una, cambiá la otra.
 - **`status` del producto:** `available` | `sold` en la práctica (`pending` e `inactive` existen en el modelo pero ninguna UI los asigna). `getShopProducts` excluye `inactive`. El público **no** ve los `sold`. El dueño los ve en gris y siempre al final de la lista.
-- **Categorías:** `shops.categories` es un `string[]` (máximo 8), y el producto guarda el **nombre** en `category` (no hay IDs; `''` = sin categoría). Por eso:
+- **Categorías:** `shops.categories` es un `string[]` (máximo `MAX_CATEGORIES` = 30, nombres de hasta 30 caracteres, únicos sin importar mayúsculas), y el producto guarda el **nombre** en `category` (no hay IDs; `''` = sin categoría). Por eso:
   - Borrar una categoría exige limpiar los productos (`clearCategoryFromProducts`).
-  - Renombrar una categoría exigiría migrar los productos. Hoy no existe esa función.
+  - Renombrar exige migrar los productos: usá `renameCategory`, que actualiza primero los productos y después la lista (conservando la posición). Ambas escriben en tandas de 500 (límite de `writeBatch`).
   - Cualquier categoría que venga de la IA se valida contra la lista de la tienda antes de aplicarla.
+  - `ProductList` ignora una categoría seleccionada que ya no existe (vuelve a "Todos").
+- **Personalización por tienda:** `theme`, `logo`, `defaultView` y `showBuyButton` son campos **opcionales** de `shops` (las tiendas viejas no los tienen y `createShop` no los crea). Leelos siempre con default: `theme || 'classic'`, `defaultView || 'grid'`, `showBuyButton !== false`, logo vacío = sin logo. No hagas migraciones para agregarlos.
+- **Paginación:** es en el cliente. `PAGE_SIZE` (grande 12, compacta 24) es múltiplo de las columnas de cada grilla (1-4 y 2-6). Si cambiás columnas o tamaños, mantené esa relación para que no queden filas incompletas. Cambiar filtro, orden o vista vuelve a la página 1.
+- **Modal de detalle:** lo abren la vista compacta y el deep link. Solo el abierto por deep link (`activeProductId`) navega a `/shop/:shopId` al cerrarse. Las acciones del dueño cierran el detalle antes de abrir otro modal; "Comprar" no lo cierra (el modal de pago queda encima).
 - **Imágenes:** `images[]` guarda **keys** de R2 (`<uuid>.<ext>`), no URLs. Resolvelas siempre con `getImageUrl()` (dominio público si está configurado; si no, URL firmada de 1 h). `ProductList` sigue soportando el campo legacy `imageUrl` como fallback. La UI usa solo `images[0]` y, al editar con una foto nueva, reemplaza el array.
-- **Limpieza en R2:** cada vez que una imagen deja de estar referenciada (borrar un producto, reemplazar su foto o fallar al guardar después de subir), se borra con `deleteFiles()` de `storage.js`. Se borra **después** de persistir en Firestore y es best-effort: si falla, se loguea con `addLog` y no bloquea al usuario. Mantené este orden en flujos nuevos.
-- **Compresión:** toda imagen pasa por `compressImage` (canvas, máx. 1200 px, JPEG q=0.8) antes de ir a R2 o a la IA.
+- **Limpieza en R2:** cada vez que una imagen deja de estar referenciada (borrar un producto, reemplazar su foto o el logo, quitar el logo, o fallar al guardar después de subir), se borra con `deleteFiles()` de `storage.js`. Se borra **después** de persistir en Firestore y es best-effort: si falla, se loguea con `addLog` y no bloquea al usuario. Mantené este orden en flujos nuevos.
+- **Compresión:** toda imagen pasa por `compressImage` de `utils/image.js` antes de ir a R2 o a la IA: fotos de producto a JPEG (máx. 1200 px, q=0.8) y logos a PNG (máx. 512 px) para conservar la transparencia. El nombre del archivo resultante lleva la extensión real, que define la de la key en R2.
 
 ## Netlify Functions (IA)
 
@@ -92,9 +100,8 @@ El cliente las llama con `fetch('/.netlify/functions/<nombre>', { method: 'POST'
 
 ## Trampas conocidas (bugs y restos detectados)
 
-- El modal de deep link (`selectedProductView` en `ProductList`) no tiene botón "Comprar", solo "Preguntar" y "Compartir".
 - `handleShare` (App.jsx) no hace nada si el navegador no soporta la Web Share API (no tiene fallback).
 - Textos residuales de etapas anteriores: `'Mi Tienda en FeriaDeOfertas'` en `handleShare`, el bloque comentado de Azure en `analyze-image.js` e `index.html`, que apunta a `/vite.svg`, un archivo inexistente.
 - `orders` / `createOrder` en `db.js` no se usan.
-- `getShopProducts` trae todo el catálogo de la tienda y además pide una URL firmada por producto en cada carga (si no hay dominio público). Filtrado y orden se hacen en el cliente.
+- `getShopProducts` trae todo el catálogo de la tienda y además pide una URL firmada por producto en cada carga (si no hay dominio público), aunque la página muestre 12 o 24. Filtrado, orden y paginación se hacen en el cliente.
 - `AuthProvider` no renderiza nada hasta resolver el estado de auth, también en la tienda pública.
