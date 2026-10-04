@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { getShopProducts, updateProductStatus } from '../services/db';
 import { getImageUrl } from '../services/storage';
-import { themes } from '../utils/themes';
+import { themes, DEFAULT_THEME } from '../utils/themes';
 import { Trash2, Edit, ShoppingCart, ExternalLink, Copy, Check, Wallet, MessageCircle, Archive, User, RotateCcw, X, Calendar, Share2, Maximize2, LayoutGrid, Grid3x3, ChevronLeft, ChevronRight, Settings2 } from 'lucide-react';
 
 // Productos por página. Son múltiplos de las columnas de cada vista (grande: 1-4, compacta: 2-6)
@@ -24,7 +24,7 @@ const getPageItems = (current, total) => {
 
 const formatPrice = (price) => `$${Number(price).toLocaleString()}`;
 
-const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopData, categories = [], activeProductId = null, onCloseActiveProduct, theme = themes.classic, defaultView = 'grid' }) => {
+const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopData, categories = [], activeProductId = null, onCloseActiveProduct, theme = themes[DEFAULT_THEME], defaultView = 'grid' }) => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedProductId, setExpandedProductId] = useState(null);

@@ -13,6 +13,9 @@ import { deleteProduct, getShopById, updateShop } from './services/db';
 import { Copy, Share2, Check, Plus, ExternalLink, Settings, Palette, X, LogOut, Store, Phone, MapPin, CreditCard, Save, Tag } from 'lucide-react';
 import { deleteFiles } from './services/storage';
 import { useImageUrl } from './hooks/useImageUrl';
+import { resolveTheme } from './utils/themes';
+import SnowEffect from './components/SnowEffect';
+import LeafEffect from './components/LeafEffect';
 
 const Dashboard = () => {
   const { user, userProfile, profileError, loginWithGoogle, logout, refreshProfile } = useAuth();
@@ -38,6 +41,9 @@ const Dashboard = () => {
   });
 
   const logoUrl = useImageUrl(shopData?.logo);
+  // El panel usa el mismo tema que la tienda pública (se actualiza en vivo al cambiarlo en Personalizar).
+  // resolveTheme aplica el tema por defecto si no hay tema o si un tema especial ya caducó.
+  const theme = resolveTheme(shopData);
   const shopUrl = userProfile?.shopId ? `${window.location.origin}/shop/${userProfile.shopId}` : '';
 
   useEffect(() => {
@@ -213,23 +219,26 @@ const Dashboard = () => {
   // Usuario con tienda (Dashboard Vendedor)
   if (userProfile && userProfile.shopId) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        {/* --- NUEVO HEADER MEJORADO --- */}
-        <div className="bg-gradient-to-r from-[#252D61] to-[#5A99CB] pb-12 pt-8 px-4 shadow-lg text-white">
-          <div className="max-w-[1600px] mx-auto">
+      <div className={`min-h-screen transition-colors duration-500 ${theme.bg}`}>
+        {/* --- HEADER CON EL TEMA DE LA TIENDA --- */}
+        {/* isolate: el z-20 del contenido (sobre la nieve/hojas) queda dentro del header y no tapa los modales */}
+        <div className={`relative isolate overflow-hidden ${theme.header} ${theme.text} pb-12 pt-8 px-4 shadow-lg`}>
+          {theme.snow && <SnowEffect />}
+          {theme.leaf && <LeafEffect />}
+          <div className="max-w-[1600px] mx-auto relative z-20">
             <div className="flex justify-between items-center mb-6">
-              
+
               {/* Título / Logo */}
               <div>
                   <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
                       <Store className="text-[#75D2C1]" size={28} /> {/* Icono color Menta */}
                       Tienda Veloz
                   </h1>
-                  <p className="text-blue-100 text-sm mt-1 opacity-90">Panel de Vendedor</p>
+                  <p className={`${theme.muted} text-sm mt-1`}>Panel de Vendedor</p>
               </div>
 
               {/* Perfil de Usuario */}
-              <div className="flex items-center gap-3 bg-white/10 px-4 py-2 rounded-full backdrop-blur-sm border border-white/10">
+              <div className={`flex items-center gap-3 ${theme.surface} px-4 py-2 rounded-full backdrop-blur-sm border`}>
                   <span className="text-sm font-medium hidden sm:block">{user?.displayName}</span>
                   {user?.photoURL ? (
                       <img 
@@ -244,7 +253,7 @@ const Dashboard = () => {
                   )}
                   <button 
                       onClick={logout}
-                      className="ml-2 text-blue-100 hover:text-white transition-colors"
+                      className={`ml-2 ${theme.muted} hover:opacity-70 transition-opacity`}
                       title="Cerrar Sesión"
                   >
                       <LogOut size={18} />
@@ -253,13 +262,13 @@ const Dashboard = () => {
             </div>
 
             {/* Action Bar inside Header */}
-            <div className="bg-white/10 rounded-xl p-4 backdrop-blur-md border border-white/10 flex flex-wrap gap-3 items-center justify-between">
+            <div className={`${theme.surface} rounded-xl p-4 backdrop-blur-md border flex flex-wrap gap-3 items-center justify-between`}>
                 <div className="flex items-center gap-3 min-w-0">
                     {logoUrl && (
                         <img src={logoUrl} alt="Logo" className="w-11 h-11 rounded-xl bg-white object-contain p-0.5 shrink-0" />
                     )}
                     <div className="text-sm min-w-0">
-                        <p className="text-blue-100">Tu tienda:</p>
+                        <p className={theme.muted}>Tu tienda:</p>
                         <p className="font-bold text-lg leading-tight truncate">{shopData?.name || 'Cargando...'}</p>
                     </div>
                 </div>
@@ -272,7 +281,7 @@ const Dashboard = () => {
                     </button>
                     <button 
                         onClick={() => setShowSettings(true)}
-                        className="bg-white/20 hover:bg-white/30 text-white px-3 py-2 rounded-lg transition-colors"
+                        className={`${theme.backButton} border px-3 py-2 rounded-lg transition-colors`}
                         title="Configuración"
                     >
                         <Settings size={20} />
@@ -514,15 +523,16 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <h3 className="text-lg font-bold mb-4 text-gray-700">Mis Productos</h3>
-          <ProductList 
-            shopId={userProfile.shopId} 
-            refreshTrigger={refreshProducts} 
+          <h3 className={`text-lg font-bold mb-4 ${theme.heading}`}>Mis Productos</h3>
+          <ProductList
+            shopId={userProfile.shopId}
+            refreshTrigger={refreshProducts}
             isOwner={true}
             onDelete={handleDeleteProduct}
             onEdit={handleEditProduct}
             categories={shopCategories}
             defaultView={shopData?.defaultView}
+            theme={theme}
           />
 
           {showAddProduct && (

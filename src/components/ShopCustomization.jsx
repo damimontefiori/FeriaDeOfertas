@@ -4,8 +4,11 @@ import { uploadFile, deleteFiles } from '../services/storage';
 import { compressImage } from '../utils/image';
 import { useImageUrl } from '../hooks/useImageUrl';
 import { useLogger } from '../context/LoggerContext';
-import { themes } from '../utils/themes';
-import { Check, ImagePlus, Loader2, Trash2, LayoutGrid, Grid3x3, ShoppingCart, Store, Palette } from 'lucide-react';
+import { themes, DEFAULT_THEME, todayInArgentina, getSpecialWindow, resolveThemeKey } from '../utils/themes';
+import { Check, ImagePlus, Loader2, Trash2, LayoutGrid, Grid3x3, ShoppingCart, Store, Palette, Sparkles } from 'lucide-react';
+
+// '2026-11-18' → '18/11'
+const formatDayMonth = (isoDate) => isoDate.split('-').reverse().slice(0, 2).join('/');
 
 const viewOptions = [
   { value: 'grid', label: 'Vista grande', description: 'Fotos grandes y botones a la vista.', Icon: LayoutGrid },
@@ -20,7 +23,13 @@ const ShopCustomization = ({ shopData, onShopUpdated }) => {
   const fileInputRef = useRef(null);
   const [savingField, setSavingField] = useState(null); // 'logo' | 'theme' | 'defaultView' | 'showBuyButton'
 
-  const currentTheme = shopData.theme || 'classic';
+  // Temas regulares siempre; especiales solo dentro de su ventana (fuera de fecha no se muestran)
+  const today = todayInArgentina();
+  const currentTheme = resolveThemeKey(shopData, today);
+  const regularThemes = Object.entries(themes).filter(([, t]) => !t.special);
+  const specialThemes = Object.entries(themes)
+    .map(([key, t]) => [key, t, getSpecialWindow(key, today)])
+    .filter(([, , activeWindow]) => activeWindow);
   const currentView = shopData.defaultView || 'grid';
   const showBuyButton = shopData.showBuyButton !== false;
   const hasPaymentData = Boolean(shopData.alias || shopData.cbu);
@@ -91,13 +100,45 @@ const ShopCustomization = ({ shopData, onShopUpdated }) => {
     }
   };
 
+  // themeSelectedOn permite saber si un tema especial se eligió en su ventana vigente (ver resolveThemeKey)
+  const renderThemeCard = (key, t, note = null) => {
+    const selected = currentTheme === key;
+    return (
+      <button
+        key={key}
+        type="button"
+        onClick={() => !selected && saveShop('theme', { theme: key, themeSelectedOn: today }, `Tema actualizado a: ${t.name}`)}
+        disabled={savingField !== null}
+        aria-pressed={selected}
+        className={`text-left rounded-xl border-2 overflow-hidden transition-all disabled:cursor-wait ${
+          selected ? 'border-blue-500 shadow-md' : 'border-gray-100 hover:border-gray-300'
+        }`}
+      >
+        {/* Mini vista previa: encabezado + fondo con pastillas */}
+        <div className={`h-9 ${t.header}`} />
+        <div className={`h-9 ${t.bg} flex items-center gap-1.5 px-2`}>
+          <span className={`h-3 w-8 rounded-full border ${t.pill}`} />
+          <span className="h-3 w-6 rounded-full bg-white border border-gray-200" />
+          <span className="h-3 w-6 rounded-full bg-white border border-gray-200" />
+        </div>
+        <div className="px-2.5 py-2 bg-white border-t border-gray-100">
+          <div className="flex items-center justify-between gap-1">
+            <span className={`text-sm font-medium leading-tight ${selected ? 'text-blue-700' : 'text-gray-700'}`}>{t.name}</span>
+            {selected && <Check size={16} className="text-blue-600 shrink-0" />}
+          </div>
+          {note && <span className="block text-[11px] font-medium text-amber-600">{note}</span>}
+        </div>
+      </button>
+    );
+  };
+
   const sectionTitle = "text-sm font-bold text-[#252D61] mb-1";
   const sectionHint = "text-xs text-gray-500 mb-3";
 
   return (
     <div className="space-y-7">
       <p className="text-xs text-gray-500 bg-blue-50 p-3 rounded border border-blue-100">
-        ℹ️ Los cambios de esta pestaña se aplican al instante en tu tienda pública.
+        ℹ️ Los cambios de esta pestaña se aplican al instante en tu tienda pública y en este panel.
       </p>
 
       {/* LOGO */}
@@ -148,36 +189,24 @@ const ShopCustomization = ({ shopData, onShopUpdated }) => {
       {/* TEMA */}
       <section>
         <h4 className={`${sectionTitle} flex items-center gap-1.5`}><Palette size={16} className="text-[#5A99CB]" /> Tema</h4>
-        <p className={sectionHint}>Cambia los colores del encabezado, el fondo y los filtros de tu tienda.</p>
+        <p className={sectionHint}>Cambia los colores del encabezado, el fondo y los filtros de tu tienda y de tu panel de vendedor.</p>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          {Object.entries(themes).map(([key, t]) => {
-            const selected = currentTheme === key;
-            return (
-              <button
-                key={key}
-                type="button"
-                onClick={() => !selected && saveShop('theme', { theme: key }, `Tema actualizado a: ${t.name}`)}
-                disabled={savingField !== null}
-                aria-pressed={selected}
-                className={`text-left rounded-xl border-2 overflow-hidden transition-all disabled:cursor-wait ${
-                  selected ? 'border-blue-500 shadow-md' : 'border-gray-100 hover:border-gray-300'
-                }`}
-              >
-                {/* Mini vista previa: encabezado + fondo con pastillas */}
-                <div className={`h-9 ${t.header}`} />
-                <div className={`h-9 ${t.bg} flex items-center gap-1.5 px-2`}>
-                  <span className={`h-3 w-8 rounded-full border ${t.pill}`} />
-                  <span className="h-3 w-6 rounded-full bg-white border border-gray-200" />
-                  <span className="h-3 w-6 rounded-full bg-white border border-gray-200" />
-                </div>
-                <div className="flex items-center justify-between px-2.5 py-2 bg-white border-t border-gray-100">
-                  <span className={`text-sm font-medium truncate ${selected ? 'text-blue-700' : 'text-gray-700'}`}>{t.name}</span>
-                  {selected && <Check size={16} className="text-blue-600 shrink-0" />}
-                </div>
-              </button>
-            );
-          })}
+          {regularThemes.map(([key, t]) => renderThemeCard(key, t))}
         </div>
+
+        {specialThemes.length > 0 && (
+          <div className="mt-5">
+            <p className="text-xs font-bold uppercase tracking-wide text-amber-600 flex items-center gap-1.5 mb-1">
+              <Sparkles size={14} /> Temas especiales
+            </p>
+            <p className={sectionHint}>
+              Disponibles por tiempo limitado. Cuando terminan, tu tienda vuelve al tema {themes[DEFAULT_THEME].name}.
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {specialThemes.map(([key, t, activeWindow]) => renderThemeCard(key, t, `Hasta el ${formatDayMonth(activeWindow.end)}`))}
+            </div>
+          </div>
+        )}
       </section>
 
       {/* VISTA DEL CATÁLOGO */}

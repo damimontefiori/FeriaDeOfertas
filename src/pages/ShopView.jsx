@@ -5,7 +5,7 @@ import ProductList from '../components/ProductList';
 import { useAuth } from '../context/AuthContext';
 import { useLogger } from '../context/LoggerContext';
 import { Store, MapPin, MessageCircle, ArrowLeft } from 'lucide-react';
-import { themes } from '../utils/themes';
+import { resolveTheme } from '../utils/themes';
 import SnowEffect from '../components/SnowEffect';
 import LeafEffect from '../components/LeafEffect';
 import { useImageUrl } from '../hooks/useImageUrl';
@@ -45,7 +45,8 @@ const ShopView = () => {
 
   if (!shop) return <div className="p-10 text-center text-red-500">Tienda no encontrada.</div>;
 
-  const themeStyles = themes[shop.theme] || themes.classic;
+  // Tema por defecto si la tienda no eligió uno o si su tema especial ya caducó
+  const themeStyles = resolveTheme(shop);
 
   return (
     <div className={`min-h-screen transition-colors duration-500 ${themeStyles.bg}`}>
@@ -70,8 +71,7 @@ const ShopView = () => {
                                 <Store size={40} />
                             </div>
                         )}
-                        {themeStyles.snow && <span className="absolute -top-3 -right-2 text-3xl transform rotate-12 filter drop-shadow-md">🎅</span>}
-                        {themeStyles.leaf && <span className="absolute -top-3 -right-2 text-3xl transform -rotate-12 filter drop-shadow-md">🌻</span>}
+                        {themeStyles.badgeEmoji && <span className="absolute -top-3 -right-2 text-3xl transform rotate-12 filter drop-shadow-md">{themeStyles.badgeEmoji}</span>}
                     </div>
                     <h1 className="text-3xl md:text-4xl font-bold drop-shadow-sm break-words min-w-0">{shop.name}</h1>
                 </div>
