@@ -2,7 +2,7 @@
 
 > Catálogo digital mobile-first para vendedores informales. El vendedor crea su tienda en segundos, sube una foto y la IA redacta título y descripción. El cierre de venta ocurre por WhatsApp + transferencia (Alias/CBU).
 
-Versión actual: `0.3.0-beta`
+Versión actual: `0.4.0-beta`
 
 ---
 
@@ -29,19 +29,22 @@ Versión actual: `0.3.0-beta`
 ### 2.1 Vendedor — Dashboard (`/`)
 - **Login con Google.** Al autenticarse se crea/lee el perfil en `users`.
 - **Onboarding:** si el usuario no tiene `shopId` se muestra `CreateShop` (nombre 4–20 chars, descripción, WhatsApp, ubicación, Alias, CBU de 22 dígitos).
-- **Panel:** logo y nombre de la tienda, enlace público (copiar / Web Share API / abrir en pestaña), alta de productos y catálogo propio con las mismas vistas y paginación que ve el comprador.
+- **Panel:** se muestra con el tema de la tienda (encabezado, fondo y colores del catálogo). Logo y nombre de la tienda, enlace público (copiar / Web Share API / abrir en pestaña), alta de productos y catálogo propio con las mismas vistas y paginación que ve el comprador.
 - **Modal de configuración**, 3 pestañas:
   - **Datos:** editar nombre, descripción, WhatsApp, ubicación, Alias, CBU. El botón guardar solo se habilita si hay cambios.
   - **Personalizar** (cada cambio se guarda al instante, por tienda):
     - **Logo:** subir, cambiar o quitar. Se guarda como PNG (máx. 512 px, conserva la transparencia) y se muestra en el encabezado de la tienda y del panel. El logo reemplazado o quitado se borra de R2.
-    - **Tema:** 7 temas con vista previa: `classic` (Original), `dark` (Oscuro), `christmas` (Navidad, con nieve), `nature` (Naturaleza, con hojas), `pink` (Rosa), `sunset` (Atardecer) y `minimal` (Minimalista). El tema colorea encabezado, fondo, filtros, orden y paginación.
+    - **Tema** (con vista previa). Colorea encabezado, fondo, filtros, orden y paginación, tanto en la tienda pública como en el panel del vendedor (el panel cambia en vivo al elegirlo).
+      - **Regulares**, siempre disponibles: `classic` (Original, **tema por defecto**), `dark` (Oscuro), `nature` (Naturaleza, con hojas), `pink` (Rosa), `sunset` (Atardecer) y `minimal` (Minimalista).
+      - **Especiales**, solo durante su fecha y en una sección aparte ("Temas especiales", con "Hasta el DD/MM"); fuera de fecha no se muestran: `christmas` (Navidad, con nieve) **solo en diciembre** de cada año, y `pope` (Visita del Papa 🕊️, celeste, blanco y dorado) por la visita de León XIV a la Argentina (8 al 11/11/2026), **hasta el 18/11/2026 inclusive**.
+      - **Caducidad:** cuando termina la fecha de un tema especial, la tienda (y su panel) vuelve al tema por defecto. La elección no revive la temporada siguiente: si en diciembre de 2027 quiere Navidad, el vendedor la elige de nuevo. Las fechas se calculan con el calendario argentino.
     - **Vista inicial del catálogo:** grande o compacta.
     - **Botón "Comprar":** mostrar u ocultar. Oculto, el comprador solo ve "Preguntar por WhatsApp" (o "Consultar" en la vista compacta).
   - **Categorías:** hasta **30** por tienda (nombre de hasta 30 caracteres, sin duplicados ignorando mayúsculas). Alta, **edición en línea** (renombrar migra los productos de la categoría y conserva su posición; Enter guarda, Escape cancela), borrado con confirmación (avisa cuántos productos quedarán "Sin categoría") y **sugerencia por IA** cuando la tienda no tiene categorías.
 - **Gestión de productos:** crear, editar, borrar, marcar **Vendido** (nota opcional del comprador + `soldAt`), volver a **Disponible** y compartir por WhatsApp. En la vista compacta, el botón "Gestionar" abre el detalle con todas estas acciones.
 
 ### 2.2 Comprador — Tienda pública (`/shop/:shopId` y `/shop/:shopId/p/:productId`)
-- Encabezado con el tema y el logo de la tienda (o un ícono si no tiene), más efectos decorativos (`SnowEffect` en Navidad, `LeafEffect` en Naturaleza).
+- Encabezado con el tema y el logo de la tienda (o un ícono si no tiene), más efectos decorativos (`SnowEffect` en Navidad, `LeafEffect` en Naturaleza) y un adorno sobre el ícono según el tema (🎅, 🌻, 🕊️).
 - Ficha con ubicación y aviso de contacto directo.
 - **Catálogo:** los productos vendidos **no** se muestran al público.
   - **Vista grande:** grilla 1→4 columnas, 12 productos por página. Click en la card la expande in-place (imagen 4:5 + descripción completa).
@@ -106,7 +109,7 @@ src/
     db.js                 Capa de datos Firestore
     storage.js            Subida, borrado y resolución de URLs de imágenes en R2
   utils/
-    themes.js             Definición de los 7 temas (clases de Tailwind por zona)
+    themes.js             Temas (clases de Tailwind por zona), temas especiales con fecha y resolución del tema efectivo (resolveTheme)
     image.js              compressImage: redimensionado/recompresión en el navegador
 netlify/functions/
   analyze-image.js        IA: foto → título/descripción/categoría
@@ -120,6 +123,7 @@ netlify/functions/
 - El WhatsApp se persiste normalizado como `549XXXXXXXXXX`.
 - **Imágenes en R2:** cuando una imagen deja de usarse (borrar producto, reemplazar foto o logo, fallo al guardar después de subir) se borra con `deleteFiles()`, siempre después de persistir en Firestore y en modo best-effort.
 - La paginación, el filtro y el orden se resuelven en el cliente sobre el catálogo completo de la tienda.
+- **Tema efectivo:** `resolveTheme(shop)` decide qué tema se muestra. Devuelve el tema por defecto (`classic`) si la tienda no eligió tema, si el tema no existe o si es un tema especial que no se eligió dentro de su ventana vigente (`themeSelectedOn`). No hay procesos programados ni migraciones: la caducidad se resuelve al mostrar la tienda.
 
 ---
 
@@ -142,7 +146,8 @@ netlify/functions/
 | `location` | string | |
 | `alias` | string | uppercase, Mercado Pago |
 | `cbu` | string | 22 dígitos, opcional |
-| `theme` | string | `classic` \| `dark` \| `christmas` \| `nature` \| `pink` \| `sunset` \| `minimal`. Ausente = `classic` |
+| `theme` | string | `classic` \| `dark` \| `nature` \| `pink` \| `sunset` \| `minimal` \| `christmas` \| `pope`. Ausente, desconocido o especial caducado = `classic` |
+| `themeSelectedOn` | string | `YYYY-MM-DD` (calendario argentino) en que se eligió el tema. Un tema especial solo vale si esta fecha cae dentro de su ventana vigente |
 | `logo` | string | key de R2 del logo (PNG). Ausente o `''` = sin logo |
 | `defaultView` | string | `grid` \| `compact`. Ausente = `grid` |
 | `showBuyButton` | boolean | Ausente = `true` (las tiendas creadas antes de v0.3 lo muestran) |
@@ -150,7 +155,7 @@ netlify/functions/
 | `active` | boolean | |
 | `createdAt` / `updatedAt` | timestamp | |
 
-> `theme`, `logo`, `defaultView` y `showBuyButton` no se crean con la tienda: se leen siempre con su valor por defecto.
+> `theme`, `themeSelectedOn`, `logo`, `defaultView` y `showBuyButton` no se crean con la tienda: se leen siempre con su valor por defecto. Las tiendas que tenían `christmas` guardado de antes de la v0.4.0 (sin `themeSelectedOn`) se muestran con el tema por defecto.
 
 ### `products/{autoId}`
 | Campo | Tipo | Notas |
@@ -196,7 +201,7 @@ VITE_R2_SECRET_ACCESS_KEY=
 VITE_R2_BUCKET_NAME=
 VITE_R2_PUBLIC_DOMAIN=     # opcional; si falta se usan URLs firmadas (1h)
 
-VITE_APP_VERSION=0.3.0-beta   # ignorada: vite.config.js la inyecta desde package.json
+VITE_APP_VERSION=0.4.0-beta   # ignorada: vite.config.js la inyecta desde package.json
 ```
 
 ### Netlify Functions (solo servidor)
