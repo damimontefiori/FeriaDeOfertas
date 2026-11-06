@@ -2,7 +2,7 @@
 
 > Catálogo digital mobile-first para vendedores informales. El vendedor crea su tienda en segundos, sube una foto y la IA redacta título y descripción. El cierre de venta ocurre por WhatsApp + transferencia (Alias/CBU).
 
-Versión actual: `0.5.1-beta`
+Versión actual: `0.6.0-beta`
 
 ---
 
@@ -43,6 +43,7 @@ Versión actual: `0.5.1-beta`
     - **Botón "Comprar":** mostrar u ocultar. Oculto, el comprador solo ve "Preguntar por WhatsApp" (o "Consultar" en la vista compacta).
   - **Categorías:** hasta **30** por tienda (nombre de hasta 30 caracteres, sin duplicados ignorando mayúsculas). Alta, **edición en línea** (renombrar migra los productos de la categoría y conserva su posición; Enter guarda, Escape cancela), borrado con confirmación (avisa cuántos productos quedarán "Sin categoría") y **sugerencia por IA** cuando la tienda no tiene categorías.
 - **Estado por defecto al crear un producto:** "Nuevo" si todos los productos disponibles de la tienda son nuevos; si no, el del último producto creado (recuerda la última opción elegida, en cualquier dispositivo). Tienda sin productos: "Usado". Al editar se respeta el estado del producto.
+- **Botón "atrás" del celular:** con el modal de configuración o el de alta/edición de producto abierto, "atrás" lo cierra en vez de salir del sitio (igual que en el catálogo, ver 2.2).
 - **Gestión de productos:** crear, editar, borrar, marcar **Vendido** (nota opcional del comprador + `soldAt`), volver a **Disponible** y compartir por WhatsApp. En la vista compacta, el botón "Gestionar" abre el detalle con todas estas acciones.
 
 ### 2.2 Comprador — Tienda pública (`/shop/:shopId` y `/shop/:shopId/p/:productId`)
@@ -58,6 +59,11 @@ Versión actual: `0.5.1-beta`
 - **Orden:** Más recientes / Precio menor / Nuevos primero (esta última solo si la tienda tiene productos nuevos y usados). Los vendidos siempre quedan al final.
 - **Pastilla Nuevo/Usado:** se muestra en las cards y en el detalle, salvo que **todos** los productos disponibles sean nuevos (en ese caso no aporta nada y se oculta). Con al menos un usado se muestran todas. No requiere configuración.
 - **Detalle de producto (modal):** se abre desde la vista compacta o por deep link `/shop/:shopId/p/:productId` (se usa al compartir). Tiene las mismas acciones que la card: Comprar (si está habilitado), Preguntar y Compartir.
+- **Botón "atrás" del celular:**
+  - Con un modal abierto (detalle, pago, foto completa), "atrás" cierra el de más arriba en vez de salir del sitio. Usa `CloseWatcher` (Chrome, Edge y Samsung Internet desde la versión 120), que no agrega entradas al historial y funciona aunque el cliente no haya tocado la página.
+  - **Link directo a un producto:** al llegar por `/shop/:shopId/p/:productId` se arma el historial [tienda → producto], así "atrás" (o la cruz) cierra el producto y deja al cliente en la tienda. Esto también cubre Safari/iPhone, que no tiene `CloseWatcher`.
+  - En navegadores sin `CloseWatcher` (Safari, Firefox), los modales abiertos con un toque no se cierran con "atrás": "atrás" navega como siempre.
+  - En la página principal de la tienda, "atrás" sale del sitio como en cualquier web (los navegadores no permiten retenerlo).
 - **Flujo de compra:**
   - Con Alias o CBU cargados → modal "Confirmar Compra": instrucciones en 3 pasos, copiar Alias/CBU, "Abrir Mercado Pago" (intent en Android / scheme en iOS / web en desktop) y "Ya pagué, enviar comprobante" (WhatsApp con mensaje prearmado).
   - Sin datos de pago → va directo a WhatsApp (`buy_direct`).
@@ -107,6 +113,7 @@ src/
     LoggerContext.jsx     addLog(message, type), clearLogs
   hooks/
     useImageUrl.js        Resuelve una key de R2 a URL mostrable (logo)
+    useCloseOnBack.js     "Atrás" del celular cierra el modal abierto (CloseWatcher)
   pages/
     ShopView.jsx          Tienda pública
   services/

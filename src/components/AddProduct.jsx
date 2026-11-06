@@ -4,6 +4,7 @@ import { addProduct, updateProduct } from '../services/db';
 import { uploadFile, deleteFiles } from '../services/storage';
 import { useLogger } from '../context/LoggerContext';
 import { compressImage } from '../utils/image';
+import { useCloseOnBack } from '../hooks/useCloseOnBack';
 import { PackagePlus, X, Upload, Image as ImageIcon, Wand2, Loader2, Edit } from 'lucide-react';
 
 // Devuelve el contenido del archivo en base64, sin la cabecera data:image/...
@@ -35,6 +36,8 @@ export const getDefaultCondition = (products = []) => {
 const AddProduct = ({ onClose, onProductAdded, productToEdit, shopCategories = [], defaultCondition = 'used' }) => {
   const { userProfile } = useAuth();
   const { addLog } = useLogger();
+  // El modal solo existe mientras está abierto: "atrás" del celular hace lo mismo que la cruz
+  useCloseOnBack(true, onClose);
   const [loading, setLoading] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [files, setFiles] = useState([]);

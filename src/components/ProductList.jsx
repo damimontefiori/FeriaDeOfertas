@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { getShopProducts, updateProductStatus } from '../services/db';
 import { getImageUrl } from '../services/storage';
 import { themes, DEFAULT_THEME } from '../utils/themes';
+import { useCloseOnBack } from '../hooks/useCloseOnBack';
 import { Trash2, Edit, ShoppingCart, ExternalLink, Copy, Check, Wallet, MessageCircle, Archive, User, RotateCcw, X, Calendar, Share2, Maximize2, LayoutGrid, Grid3x3, ChevronLeft, ChevronRight, Settings2 } from 'lucide-react';
 
 // Productos por página. Son múltiplos de las columnas de cada vista (grande: 1-4, compacta: 2-6)
@@ -238,11 +239,19 @@ const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopDa
     }
   };
 
+  const previousActiveProductIdRef = useRef(activeProductId);
   useEffect(() => {
-    if (!activeProductId) return;
-    const product = products.find((item) => item.id === activeProductId);
-    if (product) {
-      setSelectedProductView(product);
+    const previousActiveProductId = previousActiveProductIdRef.current;
+    previousActiveProductIdRef.current = activeProductId;
+
+    if (activeProductId) {
+      const product = products.find((item) => item.id === activeProductId);
+      if (product) {
+        setSelectedProductView(product);
+      }
+    } else if (previousActiveProductId) {
+      // La URL dejó de apuntar al producto (ej. "atrás" en Safari, de /p/:productId a la tienda): se cierra su detalle
+      setSelectedProductView(null);
     }
   }, [activeProductId, products]);
 
@@ -254,6 +263,12 @@ const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopDa
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [lightboxProduct]);
+
+  // "Atrás" del celular cierra el modal de más arriba en vez de salir del sitio
+  useCloseOnBack(Boolean(selectedProductView), closeProductView);
+  useCloseOnBack(Boolean(selectedProduct), () => setSelectedProduct(null));
+  useCloseOnBack(Boolean(lightboxProduct), () => setLightboxProduct(null));
+  useCloseOnBack(soldModalOpen, () => setSoldModalOpen(false));
 
   const getTimestampValue = (timestamp) => {
     if (!timestamp) return 0;

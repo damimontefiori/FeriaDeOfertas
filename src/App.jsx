@@ -15,6 +15,7 @@ import { deleteFiles } from './services/storage';
 import { useImageUrl } from './hooks/useImageUrl';
 import { resolveTheme } from './utils/themes';
 import { getMapsSearchUrl } from './utils/maps';
+import { useCloseOnBack } from './hooks/useCloseOnBack';
 import SnowEffect from './components/SnowEffect';
 import LeafEffect from './components/LeafEffect';
 
@@ -43,6 +44,9 @@ const Dashboard = () => {
     alias: '',
     cbu: ''
   });
+
+  // "Atrás" del celular cierra el modal de configuración en vez de salir del sitio
+  useCloseOnBack(showSettings, () => setShowSettings(false));
 
   const logoUrl = useImageUrl(shopData?.logo);
   // El panel usa el mismo tema que la tienda pública (se actualiza en vivo al cambiarlo en Personalizar).

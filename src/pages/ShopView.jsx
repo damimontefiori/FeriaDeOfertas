@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useEffect, useRef, useState } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { getShopById } from '../services/db';
 import ProductList from '../components/ProductList';
 import { useAuth } from '../context/AuthContext';
@@ -14,6 +14,8 @@ import { useImageUrl } from '../hooks/useImageUrl';
 const ShopView = () => {
   const { shopId, productId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const linkHistoryCheckedRef = useRef(false);
   const { user, loginWithGoogle } = useAuth();
   const { addLog } = useLogger();
   const [shop, setShop] = useState(null);
@@ -41,6 +43,29 @@ const ShopView = () => {
     };
     loadShop();
   }, [shopId, addLog]);
+
+  // Llegada directa por el link de un producto (ej. compartido por WhatsApp): el historial solo tiene esa página,
+  // así que "atrás" sacaba al cliente del sitio. Se arma [tienda → producto] para que "atrás" cierre el producto
+  // y lo deje en la tienda. location.key === 'default' = primera entrada de la visita (sin estado de React Router).
+  // Chrome saltea esta entrada si el usuario no tocó la página; ahí el que cierra el producto es useCloseOnBack.
+  useEffect(() => {
+    if (!shop || !productId || linkHistoryCheckedRef.current) return;
+    linkHistoryCheckedRef.current = true;
+    if (location.key === 'default') {
+      navigate(`/shop/${shopId}`, { replace: true });
+      navigate(`/shop/${shopId}/p/${productId}`, { state: { fromShop: true } });
+    }
+  }, [shop, productId, shopId, location.key, navigate]);
+
+  // Cerrar el producto abierto por link: si la tienda quedó debajo en el historial, se vuelve a ella;
+  // si no, se reemplaza la URL (empujar una entrada nueva haría que "atrás" reabra el producto).
+  const closeLinkedProduct = () => {
+    if (location.state?.fromShop) {
+      navigate(-1);
+    } else {
+      navigate(`/shop/${shopId}`, { replace: true });
+    }
+  };
 
   if (loading) return <div className="p-10 text-center">Cargando tienda...</div>;
 
@@ -133,7 +158,7 @@ const ShopView = () => {
           defaultView={shop.defaultView}
           categories={shop.categories || []}
           activeProductId={productId}
-          onCloseActiveProduct={() => navigate(`/shop/${shopId}`)}
+          onCloseActiveProduct={closeLinkedProduct}
         />
       </div>
     </div>
