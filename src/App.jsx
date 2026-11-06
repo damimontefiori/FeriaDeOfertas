@@ -4,7 +4,7 @@ import { LoggerProvider, useLogger } from './context/LoggerContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import SystemLogger from './components/SystemLogger';
 import CreateShop from './components/CreateShop';
-import AddProduct from './components/AddProduct';
+import AddProduct, { getDefaultCondition } from './components/AddProduct';
 import ProductList from './components/ProductList';
 import ShopView from './pages/ShopView';
 import CategoryManager from './components/CategoryManager';
@@ -26,6 +26,8 @@ const Dashboard = () => {
   const [shopData, setShopData] = useState(null);
   const [editingProduct, setEditingProduct] = useState(null);
   const [refreshProducts, setRefreshProducts] = useState(0);
+  // Nuevo/Usado con el que arranca el alta de producto; se recalcula con cada carga del catálogo propio
+  const [defaultCondition, setDefaultCondition] = useState('used');
   const [copiedLink, setCopiedLink] = useState(false);
   const navigate = useNavigate();
 
@@ -568,6 +570,7 @@ const Dashboard = () => {
             categories={shopCategories}
             defaultView={shopData?.defaultView}
             theme={theme}
+            onProductsChange={(products) => setDefaultCondition(getDefaultCondition(products))}
           />
 
           {showAddProduct && (
@@ -584,6 +587,7 @@ const Dashboard = () => {
               }}
               productToEdit={editingProduct}
               shopCategories={shopCategories}
+              defaultCondition={defaultCondition}
             />
           )}
         </div>

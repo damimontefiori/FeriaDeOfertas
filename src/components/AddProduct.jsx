@@ -16,7 +16,23 @@ const readFileAsBase64 = (file) => {
   });
 };
 
-const AddProduct = ({ onClose, onProductAdded, productToEdit, shopCategories = [] }) => {
+// Estado (Nuevo/Usado) con el que arranca el formulario de un producto nuevo, a partir de los productos de la tienda:
+// 1) si todos los disponibles son nuevos → 'new' (misma regla que oculta la pastilla en ProductList);
+// 2) si no, el del último producto creado: recuerda la última opción elegida, en cualquier dispositivo;
+// 3) tienda sin productos → 'used'.
+export const getDefaultCondition = (products = []) => {
+  const available = products.filter(p => p.status !== 'sold');
+  if (available.length > 0 && available.every(p => p.condition === 'new')) return 'new';
+
+  const createdSeconds = (product) => product.createdAt?.seconds ?? 0;
+  const latest = products.reduce(
+    (last, product) => (!last || createdSeconds(product) > createdSeconds(last) ? product : last),
+    null
+  );
+  return latest?.condition === 'new' ? 'new' : 'used';
+};
+
+const AddProduct = ({ onClose, onProductAdded, productToEdit, shopCategories = [], defaultCondition = 'used' }) => {
   const { userProfile } = useAuth();
   const { addLog } = useLogger();
   const [loading, setLoading] = useState(false);
@@ -27,7 +43,7 @@ const AddProduct = ({ onClose, onProductAdded, productToEdit, shopCategories = [
     title: '',
     description: '',
     price: '',
-    condition: 'used',
+    condition: defaultCondition,
     category: ''
   });
 

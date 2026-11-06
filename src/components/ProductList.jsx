@@ -26,7 +26,7 @@ const getPageItems = (current, total) => {
 
 const formatPrice = (price) => `$${Number(price).toLocaleString()}`;
 
-const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopData, categories = [], activeProductId = null, onCloseActiveProduct, theme = themes[DEFAULT_THEME], defaultView = 'grid' }) => {
+const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopData, categories = [], activeProductId = null, onCloseActiveProduct, theme = themes[DEFAULT_THEME], defaultView = 'grid', onProductsChange }) => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedProductId, setExpandedProductId] = useState(null);
@@ -97,6 +97,12 @@ const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopDa
 
     fetchProducts();
   }, [shopId, shopData, refreshTrigger]);
+
+  // Avisa al padre cada vez que cambia la lista (carga, vendido, disponible). El panel lo usa para el
+  // estado por defecto de un producto nuevo, sin volver a leer el catálogo de Firestore.
+  useEffect(() => {
+    if (onProductsChange) onProductsChange(products);
+  }, [products]);
 
   const openSoldModal = (product) => {
     setProductToSell(product);

@@ -2,7 +2,7 @@
 
 > Catálogo digital mobile-first para vendedores informales. El vendedor crea su tienda en segundos, sube una foto y la IA redacta título y descripción. El cierre de venta ocurre por WhatsApp + transferencia (Alias/CBU).
 
-Versión actual: `0.5.0-beta`
+Versión actual: `0.5.1-beta`
 
 ---
 
@@ -42,6 +42,7 @@ Versión actual: `0.5.0-beta`
     - **Vista inicial del catálogo:** grande o compacta.
     - **Botón "Comprar":** mostrar u ocultar. Oculto, el comprador solo ve "Preguntar por WhatsApp" (o "Consultar" en la vista compacta).
   - **Categorías:** hasta **30** por tienda (nombre de hasta 30 caracteres, sin duplicados ignorando mayúsculas). Alta, **edición en línea** (renombrar migra los productos de la categoría y conserva su posición; Enter guarda, Escape cancela), borrado con confirmación (avisa cuántos productos quedarán "Sin categoría") y **sugerencia por IA** cuando la tienda no tiene categorías.
+- **Estado por defecto al crear un producto:** "Nuevo" si todos los productos disponibles de la tienda son nuevos; si no, el del último producto creado (recuerda la última opción elegida, en cualquier dispositivo). Tienda sin productos: "Usado". Al editar se respeta el estado del producto.
 - **Gestión de productos:** crear, editar, borrar, marcar **Vendido** (nota opcional del comprador + `soldAt`), volver a **Disponible** y compartir por WhatsApp. En la vista compacta, el botón "Gestionar" abre el detalle con todas estas acciones.
 
 ### 2.2 Comprador — Tienda pública (`/shop/:shopId` y `/shop/:shopId/p/:productId`)
