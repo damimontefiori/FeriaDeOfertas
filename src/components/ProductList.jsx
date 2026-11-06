@@ -8,6 +8,8 @@ import { Trash2, Edit, ShoppingCart, ExternalLink, Copy, Check, Wallet, MessageC
 // para que la última fila de cada página quede completa.
 const PAGE_SIZE = { grid: 12, compact: 24 };
 const MAX_VISIBLE_CATEGORY_PILLS = 10;
+// Valor del filtro "Sin categoría". Un Symbol no puede chocar con ningún nombre de categoría que cargue el vendedor.
+const UNCATEGORIZED = Symbol('sin-categoria');
 
 // Números de página a mostrar: primera, última y vecinas de la actual, con '…' en los saltos
 const getPageItems = (current, total) => {
@@ -279,11 +281,37 @@ const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopDa
     ? products
     : products.filter(p => p.status !== 'sold');
 
-  // Si la categoría elegida dejó de existir (renombrada o borrada), se vuelve a "Todos"
-  const activeCategory = selectedCategory && categories.includes(selectedCategory) ? selectedCategory : null;
-  const filteredProducts = activeCategory
-    ? visibleProducts.filter(p => p.category === activeCategory)
-    : visibleProducts;
+  // Sin categoría = sin `category` o con una que ya no está en la lista de la tienda (huérfana)
+  const hasValidCategory = (product) => Boolean(product.category) && categories.includes(product.category);
+
+  // Contadores para las pastillas de categoría
+  const categoryCounts = {};
+  let uncategorizedCount = 0;
+  visibleProducts.forEach(p => {
+    if (hasValidCategory(p)) {
+      categoryCounts[p.category] = (categoryCounts[p.category] || 0) + 1;
+    } else {
+      uncategorizedCount++;
+    }
+  });
+  const pillCategories = categories.filter(cat => categoryCounts[cat]);
+  // "Sin categoría" solo aparece si además hay productos con categoría (si no, mostraría lo mismo que "Todos")
+  const showUncategorizedPill = pillCategories.length > 0 && uncategorizedCount > 0;
+
+  // Si la categoría elegida dejó de existir (renombrada o borrada) o "Sin categoría" quedó vacío, se vuelve a "Todos"
+  let activeCategory = null;
+  if (selectedCategory === UNCATEGORIZED) {
+    activeCategory = showUncategorizedPill ? UNCATEGORIZED : null;
+  } else if (selectedCategory && categories.includes(selectedCategory)) {
+    activeCategory = selectedCategory;
+  }
+
+  let filteredProducts = visibleProducts;
+  if (activeCategory === UNCATEGORIZED) {
+    filteredProducts = visibleProducts.filter(p => !hasValidCategory(p));
+  } else if (activeCategory) {
+    filteredProducts = visibleProducts.filter(p => p.category === activeCategory);
+  }
 
   const sortedProducts = [...filteredProducts].sort(compareProducts);
 
@@ -293,27 +321,30 @@ const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopDa
   const pageStart = (currentPage - 1) * pageSize;
   const pageProducts = sortedProducts.slice(pageStart, pageStart + pageSize);
 
-  // Count products per category (for pills)
-  const categoryCounts = {};
-  visibleProducts.forEach(p => {
-    if (p.category) {
-      categoryCounts[p.category] = (categoryCounts[p.category] || 0) + 1;
-    }
-  });
-  const pillCategories = categories.filter(cat => categoryCounts[cat]);
   let shownPillCategories = showAllCategories
     ? pillCategories
     : pillCategories.slice(0, MAX_VISIBLE_CATEGORY_PILLS);
-  if (activeCategory && !shownPillCategories.includes(activeCategory)) {
+  if (activeCategory && activeCategory !== UNCATEGORIZED && !shownPillCategories.includes(activeCategory)) {
     shownPillCategories = [...shownPillCategories, activeCategory];
   }
   const hiddenPillsCount = pillCategories.length - shownPillCategories.length;
 
+  // Pastilla Nuevo/Usado: si todos los productos disponibles son nuevos, "Nuevo" en cada card no aporta nada y se oculta.
+  // "Usado" sí informa (el comprador asume nuevo), así que con al menos un usado se muestran todas.
+  // Se calcula sobre toda la tienda (no sobre el filtro) para que no aparezca y desaparezca al cambiar de categoría.
+  const availableProducts = products.filter(p => p.status !== 'sold');
+  const hasUsedProducts = availableProducts.some(p => p.condition !== 'new');
+  const hasNewProducts = availableProducts.some(p => p.condition === 'new');
+  const showConditionBadge = hasUsedProducts;
+
   const sortOptions = [
     { value: 'recent', label: 'Más recientes' },
     { value: 'price-asc', label: 'Precio menor' },
-    { value: 'new-first', label: 'Nuevos primero' }
+    // "Nuevos primero" solo ordena algo si la tienda mezcla nuevos y usados
+    ...(hasNewProducts && hasUsedProducts ? [{ value: 'new-first', label: 'Nuevos primero' }] : [])
   ];
+  // Si el orden elegido ya no está disponible, se marca "Más recientes" (con todos iguales, "Nuevos primero" ordena igual)
+  const activeSort = sortOptions.some(option => option.value === sortBy) ? sortBy : 'recent';
 
   const selectCategory = (category) => {
     setSelectedCategory(category);
@@ -501,9 +532,17 @@ const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopDa
                 onClick={() => selectCategory(activeCategory === cat ? null : cat)}
                 className={`${pillBase} ${activeCategory === cat ? theme.pill : pillInactive}`}
               >
-                {cat} ({categoryCounts[cat]})
+                {cat} ({categoryCounts[cat] || 0})
               </button>
             ))}
+            {showUncategorizedPill && (
+              <button
+                onClick={() => selectCategory(activeCategory === UNCATEGORIZED ? null : UNCATEGORIZED)}
+                className={`${pillBase} ${activeCategory === UNCATEGORIZED ? theme.pill : pillInactive}`}
+              >
+                Sin categoría ({uncategorizedCount})
+              </button>
+            )}
             {hiddenPillsCount > 0 && (
               <button
                 onClick={() => setShowAllCategories(true)}
@@ -550,7 +589,7 @@ const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopDa
               <button
                 key={option.value}
                 onClick={() => changeSort(option.value)}
-                className={`${pillBase} ${sortBy === option.value ? theme.pillAlt : pillInactive}`}
+                className={`${pillBase} ${activeSort === option.value ? theme.pillAlt : pillInactive}`}
               >
                 {option.label}
               </button>
@@ -591,7 +630,7 @@ const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopDa
                   )}
                   {product.status === 'sold' ? (
                     <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-red-600 text-white">VENDIDO</span>
-                  ) : (
+                  ) : showConditionBadge && (
                     <span className={`absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide text-white ${product.condition === 'new' ? 'bg-green-500' : 'bg-orange-400/90'}`}>
                       {product.condition === 'new' ? 'Nuevo' : 'Usado'}
                     </span>
@@ -636,7 +675,7 @@ const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopDa
                 {product.status === 'sold' ? 'VENDIDO' : formatPrice(product.price)}
               </div>
 
-              {product.status !== 'sold' && (
+              {product.status !== 'sold' && showConditionBadge && (
                   <div className={`absolute top-2 left-2 px-2 py-0.5 rounded-md text-xs font-bold shadow-sm uppercase tracking-wide ${
                       product.condition === 'new'
                       ? 'bg-green-500 text-white'
@@ -790,7 +829,7 @@ const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopDa
                   {selectedProductView.status === 'sold' ? 'VENDIDO' : formatPrice(selectedProductView.price)}
                 </div>
 
-                {selectedProductView.status !== 'sold' && (
+                {selectedProductView.status !== 'sold' && showConditionBadge && (
                   <div className={`absolute top-3 left-3 px-2 py-0.5 rounded-md text-xs font-bold shadow-sm uppercase tracking-wide text-white ${selectedProductView.condition === 'new' ? 'bg-green-500' : 'bg-orange-400/90'}`}>
                     {selectedProductView.condition === 'new' ? 'Nuevo ✨' : 'Usado'}
                   </div>
@@ -809,7 +848,7 @@ const ProductList = ({ shopId, refreshTrigger, isOwner, onEdit, onDelete, shopDa
               </div>
 
               <div className="p-4 space-y-4">
-                {selectedProductView.category && (
+                {hasValidCategory(selectedProductView) && (
                   <span className="inline-block text-xs font-medium text-gray-600 bg-gray-100 px-2.5 py-1 rounded-full">
                     {selectedProductView.category}
                   </span>

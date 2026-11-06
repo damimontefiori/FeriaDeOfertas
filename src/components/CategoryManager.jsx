@@ -160,13 +160,22 @@ const CategoryManager = ({ shopData, onCategoriesChange, onProductsChanged }) =>
   const handleConfirmAssignProducts = async () => {
     if (!aiSuggestion?.assignments) return;
     try {
-      const updates = Object.entries(aiSuggestion.assignments).map(([productId, category]) => ({
-        productId,
-        category
-      }));
-      await batchUpdateProductCategories(updates);
+      // Solo se aplican categorías de la lista guardada (sin importar mayúsculas, con el nombre tal cual está en la lista).
+      // Si la IA devuelve un nombre que no está, el producto quedaría con una categoría huérfana: se deja sin categoría.
+      const validCategories = new Map(aiSuggestion.categories.map(c => [c.toLowerCase(), c]));
+      const assignments = Object.entries(aiSuggestion.assignments);
+      const updates = assignments
+        .map(([productId, category]) => ({
+          productId,
+          category: typeof category === 'string' ? validCategories.get(category.trim().toLowerCase()) : undefined
+        }))
+        .filter(update => update.category);
+      if (updates.length > 0) {
+        await batchUpdateProductCategories(updates);
+      }
       onProductsChanged();
-      addLog(`Categorías asignadas a ${updates.length} productos`, 'success');
+      const skipped = assignments.length - updates.length;
+      addLog(`Categorías asignadas a ${updates.length} productos${skipped > 0 ? ` (${skipped} quedaron sin categoría)` : ''}`, 'success');
     } catch (err) {
       addLog(`Error asignando: ${err.message}`, 'error');
     } finally {

@@ -4,8 +4,9 @@ import { getShopById } from '../services/db';
 import ProductList from '../components/ProductList';
 import { useAuth } from '../context/AuthContext';
 import { useLogger } from '../context/LoggerContext';
-import { Store, MapPin, MessageCircle, ArrowLeft } from 'lucide-react';
+import { Store, MapPin, MessageCircle, ArrowLeft, ExternalLink } from 'lucide-react';
 import { resolveTheme } from '../utils/themes';
+import { getMapsSearchUrl } from '../utils/maps';
 import SnowEffect from '../components/SnowEffect';
 import LeafEffect from '../components/LeafEffect';
 import { useImageUrl } from '../hooks/useImageUrl';
@@ -95,10 +96,27 @@ const ShopView = () => {
       <div className="container mx-auto p-4 max-w-[1600px] -mt-8 relative z-20">
         {/* INFO CARD */}
         <div className="bg-white rounded-xl shadow-md p-4 mb-8 flex flex-wrap gap-4 text-sm text-gray-600 border border-gray-100">
-          <div className="flex items-center gap-2">
-            <MapPin size={18} className="text-blue-500" />
-            <span>{shop.location}</span>
-          </div>
+          {/* Con zona cargada, la ubicación abre Google Maps en esa zona (no es la dirección exacta) */}
+          {shop.mapArea ? (
+            <a
+              href={getMapsSearchUrl(shop.mapArea)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 group"
+              title="Ver la zona en Google Maps"
+            >
+              <MapPin size={18} className="text-blue-500 shrink-0" />
+              <span>{shop.location || shop.mapArea}</span>
+              <span className="text-blue-600 font-medium group-hover:underline whitespace-nowrap flex items-center gap-1">
+                Ver en el mapa <ExternalLink size={14} />
+              </span>
+            </a>
+          ) : (
+            <div className="flex items-center gap-2">
+              <MapPin size={18} className="text-blue-500" />
+              <span>{shop.location}</span>
+            </div>
+          )}
           <div className="flex items-center gap-2">
             <MessageCircle size={18} className="text-green-500" />
             <span>Contacto directo disponible al comprar</span>

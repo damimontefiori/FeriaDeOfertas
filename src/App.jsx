@@ -10,10 +10,11 @@ import ShopView from './pages/ShopView';
 import CategoryManager from './components/CategoryManager';
 import ShopCustomization from './components/ShopCustomization';
 import { deleteProduct, getShopById, updateShop } from './services/db';
-import { Copy, Share2, Check, Plus, ExternalLink, Settings, Palette, X, LogOut, Store, Phone, MapPin, CreditCard, Save, Tag } from 'lucide-react';
+import { Copy, Share2, Check, Plus, ExternalLink, Settings, Palette, X, LogOut, Store, Phone, MapPin, Map as MapIcon, CreditCard, Save, Tag } from 'lucide-react';
 import { deleteFiles } from './services/storage';
 import { useImageUrl } from './hooks/useImageUrl';
 import { resolveTheme } from './utils/themes';
+import { getMapsSearchUrl } from './utils/maps';
 import SnowEffect from './components/SnowEffect';
 import LeafEffect from './components/LeafEffect';
 
@@ -36,6 +37,7 @@ const Dashboard = () => {
     description: '',
     whatsapp: '',
     location: '',
+    mapArea: '',
     alias: '',
     cbu: ''
   });
@@ -60,6 +62,7 @@ const Dashboard = () => {
         description: shopData.description || '',
         whatsapp: shopData.whatsapp ? shopData.whatsapp.replace(/^549/, '') : '',
         location: shopData.location || '',
+        mapArea: shopData.mapArea || '',
         alias: shopData.alias || '',
         cbu: shopData.cbu || ''
       });
@@ -90,6 +93,7 @@ const Dashboard = () => {
         description: editFormData.description,
         whatsapp: finalWhatsapp,
         location: editFormData.location,
+        mapArea: editFormData.mapArea.trim(),
         alias: editFormData.alias.toUpperCase(),
         cbu: editFormData.cbu
       };
@@ -166,6 +170,7 @@ const Dashboard = () => {
     editFormData.description !== (shopData.description || '') ||
     editFormData.whatsapp !== (shopData.whatsapp ? shopData.whatsapp.replace(/^549/, '') : '') ||
     editFormData.location !== (shopData.location || '') ||
+    editFormData.mapArea.trim() !== (shopData.mapArea || '') ||
     editFormData.alias !== (shopData.alias || '') ||
     editFormData.cbu !== (shopData.cbu || '')
   );
@@ -404,6 +409,36 @@ const Dashboard = () => {
                             onChange={e => setEditFormData({...editFormData, location: e.target.value})}
                           />
                         </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-bold text-[#252D61] mb-1.5 flex items-center gap-1">
+                          <MapIcon size={14} className="text-[#5A99CB]"/> Zona en Google Maps <span className="font-normal text-gray-400">(opcional)</span>
+                        </label>
+                        <input
+                          type="text"
+                          maxLength={80}
+                          placeholder="Ej: Palermo, CABA"
+                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5A99CB] focus:border-[#5A99CB] outline-none transition-all text-base bg-gray-50 focus:bg-white"
+                          value={editFormData.mapArea}
+                          onChange={e => setEditFormData({...editFormData, mapArea: e.target.value})}
+                        />
+                        <p className="mt-1 text-xs text-gray-400">
+                          Poné tu barrio o localidad, no tu dirección exacta. Tus clientes van a poder ver la zona en el mapa.
+                          {editFormData.mapArea.trim() && (
+                            <>
+                              {' '}
+                              <a
+                                href={getMapsSearchUrl(editFormData.mapArea)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-[#5A99CB] font-bold hover:underline whitespace-nowrap"
+                              >
+                                Probar en el mapa ↗
+                              </a>
+                            </>
+                          )}
+                        </p>
                       </div>
 
                       <div className="bg-[#252D61]/5 p-4 rounded-xl border border-[#252D61]/10">
