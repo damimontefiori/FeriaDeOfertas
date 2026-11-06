@@ -2,7 +2,7 @@
 
 > Catálogo digital mobile-first para vendedores informales. El vendedor crea su tienda en segundos, sube una foto y la IA redacta título y descripción. El cierre de venta ocurre por WhatsApp + transferencia (Alias/CBU).
 
-Versión actual: `0.4.0-beta`
+Versión actual: `0.5.0-beta`
 
 ---
 
@@ -31,7 +31,8 @@ Versión actual: `0.4.0-beta`
 - **Onboarding:** si el usuario no tiene `shopId` se muestra `CreateShop` (nombre 4–20 chars, descripción, WhatsApp, ubicación, Alias, CBU de 22 dígitos).
 - **Panel:** se muestra con el tema de la tienda (encabezado, fondo y colores del catálogo). Logo y nombre de la tienda, enlace público (copiar / Web Share API / abrir en pestaña), alta de productos y catálogo propio con las mismas vistas y paginación que ve el comprador.
 - **Modal de configuración**, 3 pestañas:
-  - **Datos:** editar nombre, descripción, WhatsApp, ubicación, Alias, CBU. El botón guardar solo se habilita si hay cambios.
+  - **Datos:** editar nombre, descripción, WhatsApp, ubicación, **zona en Google Maps** (opcional), Alias, CBU. El botón guardar solo se habilita si hay cambios.
+    - **Zona en Google Maps:** texto libre con barrio o localidad (no la dirección exacta). Tiene un link "Probar en el mapa" para verificar qué muestra Maps. Solo se carga desde Datos (no en el onboarding).
   - **Personalizar** (cada cambio se guarda al instante, por tienda):
     - **Logo:** subir, cambiar o quitar. Se guarda como PNG (máx. 512 px, conserva la transparencia) y se muestra en el encabezado de la tienda y del panel. El logo reemplazado o quitado se borra de R2.
     - **Tema** (con vista previa). Colorea encabezado, fondo, filtros, orden y paginación, tanto en la tienda pública como en el panel del vendedor (el panel cambia en vivo al elegirlo).
@@ -45,13 +46,16 @@ Versión actual: `0.4.0-beta`
 
 ### 2.2 Comprador — Tienda pública (`/shop/:shopId` y `/shop/:shopId/p/:productId`)
 - Encabezado con el tema y el logo de la tienda (o un ícono si no tiene), más efectos decorativos (`SnowEffect` en Navidad, `LeafEffect` en Naturaleza) y un adorno sobre el ícono según el tema (🎅, 🌻, 🕊️).
-- Ficha con ubicación y aviso de contacto directo.
+- Ficha con ubicación y aviso de contacto directo. Si la tienda cargó su zona, la ubicación es un link **"Ver en el mapa"** que abre Google Maps en esa zona (búsqueda por texto, sin API key).
+- **Sin traducción automática:** la página se declara en español (`lang="es"`) y marcada como no traducible (`translate="no"`, `class="notranslate"` y `<meta name="google" content="notranslate">` en `index.html`), para que el traductor del navegador no cambie el nombre de la tienda ni los títulos de los productos.
 - **Catálogo:** los productos vendidos **no** se muestran al público.
   - **Vista grande:** grilla 1→4 columnas, 12 productos por página. Click en la card la expande in-place (imagen 4:5 + descripción completa).
   - **Vista compacta:** grilla 2→6 columnas, 24 productos por página. Card con foto, título, precio y un único botón ("Comprar", o "Consultar" si la tienda ocultó Comprar). Click en la card abre el detalle.
   - La vista inicial la elige la tienda; el comprador la cambia con el selector "Vista grande / Vista compacta".
   - **Paginación** con anterior/siguiente y números de página (con "…" si hay muchas); al cambiar de página se vuelve al inicio del catálogo. Cambiar filtro, orden o vista vuelve a la página 1.
-- **Filtro por categoría** (pills con contadores; con más de 10 categorías se muestran 10 y un botón "+N más") y **orden**: Más recientes / Precio menor / Nuevos primero. Los vendidos siempre quedan al final.
+- **Filtro por categoría** (pills con contadores; con más de 10 categorías se muestran 10 y un botón "+N más"). Si hay productos con categoría y otros sin ella, aparece la pastilla **"Sin categoría"**: agrupa los que no tienen categoría o tienen una que ya no está en la lista de la tienda.
+- **Orden:** Más recientes / Precio menor / Nuevos primero (esta última solo si la tienda tiene productos nuevos y usados). Los vendidos siempre quedan al final.
+- **Pastilla Nuevo/Usado:** se muestra en las cards y en el detalle, salvo que **todos** los productos disponibles sean nuevos (en ese caso no aporta nada y se oculta). Con al menos un usado se muestran todas. No requiere configuración.
 - **Detalle de producto (modal):** se abre desde la vista compacta o por deep link `/shop/:shopId/p/:productId` (se usa al compartir). Tiene las mismas acciones que la card: Comprar (si está habilitado), Preguntar y Compartir.
 - **Flujo de compra:**
   - Con Alias o CBU cargados → modal "Confirmar Compra": instrucciones en 3 pasos, copiar Alias/CBU, "Abrir Mercado Pago" (intent en Android / scheme en iOS / web en desktop) y "Ya pagué, enviar comprobante" (WhatsApp con mensaje prearmado).
@@ -66,7 +70,7 @@ Versión actual: `0.4.0-beta`
 
 - Ambas usan `response_format: json_object` y responden en español.
 - `analyze-image` solo pide categoría si la tienda ya tiene categorías; el cliente valida que la categoría devuelta exista antes de aplicarla.
-- `suggest-categories` pide el **mínimo** de categorías (máx. 6) y una asignación por producto. Al aceptar, la app pregunta si además quiere aplicar las asignaciones (`writeBatch`).
+- `suggest-categories` pide el **mínimo** de categorías (máx. 6) y una asignación por producto. Al aceptar, la app pregunta si además quiere aplicar las asignaciones (`writeBatch`). Solo se aplican las asignaciones cuya categoría está en la lista aceptada (sin importar mayúsculas); el resto de los productos queda sin categoría.
 - Las imágenes se **comprimen en el navegador** (`utils/image.js`, canvas) antes de ir a la IA y a R2: fotos de producto a JPEG máx. 1200 px q=0.8; logos a PNG máx. 512 px.
 
 ---
@@ -111,6 +115,7 @@ src/
   utils/
     themes.js             Temas (clases de Tailwind por zona), temas especiales con fecha y resolución del tema efectivo (resolveTheme)
     image.js              compressImage: redimensionado/recompresión en el navegador
+    maps.js               getMapsSearchUrl: link de Google Maps para la zona de la tienda
 netlify/functions/
   analyze-image.js        IA: foto → título/descripción/categoría
   suggest-categories.js   IA: productos → categorías + asignaciones
@@ -144,6 +149,7 @@ netlify/functions/
 | `description` | string | opcional |
 | `whatsapp` | string | `549` + número |
 | `location` | string | |
+| `mapArea` | string | Zona para Google Maps (barrio/localidad, texto libre). Ausente o `''` = sin link al mapa |
 | `alias` | string | uppercase, Mercado Pago |
 | `cbu` | string | 22 dígitos, opcional |
 | `theme` | string | `classic` \| `dark` \| `nature` \| `pink` \| `sunset` \| `minimal` \| `christmas` \| `pope`. Ausente, desconocido o especial caducado = `classic` |
@@ -155,7 +161,7 @@ netlify/functions/
 | `active` | boolean | |
 | `createdAt` / `updatedAt` | timestamp | |
 
-> `theme`, `themeSelectedOn`, `logo`, `defaultView` y `showBuyButton` no se crean con la tienda: se leen siempre con su valor por defecto. Las tiendas que tenían `christmas` guardado de antes de la v0.4.0 (sin `themeSelectedOn`) se muestran con el tema por defecto.
+> `theme`, `themeSelectedOn`, `logo`, `defaultView`, `showBuyButton` y `mapArea` no se crean con la tienda: se leen siempre con su valor por defecto. Las tiendas que tenían `christmas` guardado de antes de la v0.4.0 (sin `themeSelectedOn`) se muestran con el tema por defecto.
 
 ### `products/{autoId}`
 | Campo | Tipo | Notas |
