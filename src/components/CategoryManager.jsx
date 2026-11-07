@@ -2,10 +2,70 @@ import React, { useRef, useState } from 'react';
 import { getShopProducts, updateShopCategories, batchUpdateProductCategories, clearCategoryFromProducts, renameCategory } from '../services/db';
 import { useLogger } from '../context/LoggerContext';
 import { MAX_VISIBLE_CATEGORY_PILLS } from './ProductList';
-import { Plus, Tag, Wand2, Loader2, Trash2, Pencil, Check, X, ArrowUpDown, ChevronUp, ChevronDown, ArrowUpToLine, ArrowDownToLine, Undo2 } from 'lucide-react';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { Plus, Tag, Wand2, Loader2, Trash2, Pencil, Check, X, ArrowUpDown, GripVertical, ArrowUpToLine, ArrowDownToLine, Undo2 } from 'lucide-react';
 
 export const MAX_CATEGORIES = 30;
 const MAX_CATEGORY_LENGTH = 30;
+
+// Al arrastrar, la fila solo se mueve en vertical
+const restrictToVerticalAxis = ({ transform }) => ({ ...transform, x: 0 });
+
+// Textos para lectores de pantalla (dnd-kit los trae en inglés)
+const dndAccessibility = {
+  screenReaderInstructions: {
+    draggable: 'Para mover la categoría, presioná espacio o Enter, cambiala de lugar con las flechas y volvé a presionar espacio o Enter para soltarla. Escape cancela.',
+  },
+  announcements: {
+    onDragStart: ({ active }) => `Moviendo ${active.id}.`,
+    onDragOver: ({ active, over }) => (over ? `${active.id} va al lugar de ${over.id}.` : `${active.id} está fuera de la lista.`),
+    onDragEnd: ({ active, over }) => (over ? `${active.id} quedó en el lugar de ${over.id}.` : `${active.id} volvió a su lugar.`),
+    onDragCancel: ({ active }) => `Se canceló el movimiento de ${active.id}.`,
+  },
+};
+
+// Fila del modo "Ordenar". Se arrastra desde la manija (con el dedo o el mouse); tocar el resto de la fila la selecciona.
+// touch-none en la manija evita que el celular tome el arrastre como scroll; la lista se desplaza sola al llegar al borde.
+const SortableCategoryRow = ({ category, position, isSelected, onToggle }) => {
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: category });
+  return (
+    <li
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={`relative flex items-center gap-1 p-1 rounded-lg border ${
+        isDragging
+          ? 'z-10 bg-white border-[#5A99CB] shadow-lg'
+          : isSelected ? 'bg-[#5A99CB]/10 border-[#5A99CB]' : 'bg-gray-50 border-gray-200'
+      }`}
+    >
+      <label className="flex items-center gap-2.5 flex-1 min-w-0 px-2 py-1.5 cursor-pointer select-none">
+        <input
+          type="checkbox"
+          checked={isSelected}
+          onChange={() => onToggle(category)}
+          className="w-4 h-4 shrink-0 accent-[#252D61]"
+        />
+        <span className="text-xs font-bold text-gray-400 w-5 text-right shrink-0">{position}</span>
+        <span className="text-sm font-medium text-gray-700 truncate">{category}</span>
+      </label>
+      <button
+        type="button"
+        ref={setActivatorNodeRef}
+        {...attributes}
+        {...listeners}
+        className={`p-2 rounded-md touch-none transition-colors ${
+          isDragging ? 'cursor-grabbing text-[#252D61]' : 'cursor-grab text-gray-400 hover:text-[#252D61] hover:bg-white'
+        }`}
+        aria-label={`Mover ${category}`}
+        title="Arrastrar para mover"
+      >
+        <GripVertical size={20} />
+      </button>
+    </li>
+  );
+};
 
 // Pestaña "Categorías" del modal de configuración: alta, edición, borrado y sugerencia con IA.
 const CategoryManager = ({ shopData, onCategoriesChange, onProductsChanged }) => {
@@ -160,12 +220,19 @@ const CategoryManager = ({ shopData, onCategoriesChange, onProductsChanged }) =>
     setSelectedToMove(prev => (prev.includes(name) ? prev.filter(c => c !== name) : [...prev, name]));
   };
 
-  const moveCategory = (index, direction) => {
-    const target = index + direction;
-    if (target < 0 || target >= categories.length) return;
-    const updated = [...categories];
-    [updated[index], updated[target]] = [updated[target], updated[index]];
-    saveOrder(updated);
+  // Arrastrar: con el mouse o el dedo desde la manija (desde 5 px, para que un toque suelto no cuente como arrastre)
+  // o con el teclado (espacio/Enter + flechas)
+  const dragSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleDragEnd = ({ active, over }) => {
+    if (!over || active.id === over.id) return;
+    const from = categories.indexOf(active.id);
+    const to = categories.indexOf(over.id);
+    if (from < 0 || to < 0) return;
+    saveOrder(arrayMove(categories, from, to));
   };
 
   // Lleva las seleccionadas al principio o al final, respetando el orden que tenían entre ellas
@@ -353,53 +420,30 @@ const CategoryManager = ({ shopData, onCategoriesChange, onProductsChanged }) =>
           {reordering ? (
             <>
               <p className="text-xs text-gray-500 mb-3">
-                Tocá las que quieras mover (por ejemplo, las de la temporada) y llevalas al principio o al final, o movelas de a una con las flechas. Los compradores las ven en este orden. Cada cambio se guarda solo.
+                Arrastrá cada categoría desde <GripVertical size={14} className="inline -mt-0.5" /> para cambiarla de lugar, o tocá varias (por ejemplo, las de la temporada) y llevalas juntas al principio o al final. Los compradores las ven en este orden. Cada cambio se guarda solo.
                 {categories.length > MAX_VISIBLE_CATEGORY_PILLS && ` En el catálogo se ven primero ${MAX_VISIBLE_CATEGORY_PILLS}; el resto, al tocar "más".`}
               </p>
-              <ol className="space-y-2">
-                {categories.map((cat, index) => {
-                  const isSelected = selectedToMove.includes(cat);
-                  return (
-                    <li
-                      key={cat}
-                      className={`flex items-center gap-1 p-1 rounded-lg border transition-colors ${
-                        isSelected ? 'bg-[#5A99CB]/10 border-[#5A99CB]' : 'bg-gray-50 border-gray-200'
-                      }`}
-                    >
-                      <label className="flex items-center gap-2.5 flex-1 min-w-0 px-2 py-1.5 cursor-pointer select-none">
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => toggleSelectedToMove(cat)}
-                          className="w-4 h-4 shrink-0 accent-[#252D61]"
-                        />
-                        <span className="text-xs font-bold text-gray-400 w-5 text-right shrink-0">{index + 1}</span>
-                        <span className="text-sm font-medium text-gray-700 truncate">{cat}</span>
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => moveCategory(index, -1)}
-                        disabled={index === 0}
-                        className="p-2 rounded-md text-gray-500 hover:bg-white hover:text-[#252D61] transition-colors disabled:text-gray-200 disabled:hover:bg-transparent"
-                        aria-label={`Subir ${cat}`}
-                        title="Subir"
-                      >
-                        <ChevronUp size={18} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => moveCategory(index, 1)}
-                        disabled={index === categories.length - 1}
-                        className="p-2 rounded-md text-gray-500 hover:bg-white hover:text-[#252D61] transition-colors disabled:text-gray-200 disabled:hover:bg-transparent"
-                        aria-label={`Bajar ${cat}`}
-                        title="Bajar"
-                      >
-                        <ChevronDown size={18} />
-                      </button>
-                    </li>
-                  );
-                })}
-              </ol>
+              <DndContext
+                sensors={dragSensors}
+                collisionDetection={closestCenter}
+                modifiers={[restrictToVerticalAxis]}
+                accessibility={dndAccessibility}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext items={categories} strategy={verticalListSortingStrategy}>
+                  <ol className="space-y-2">
+                    {categories.map((cat, index) => (
+                      <SortableCategoryRow
+                        key={cat}
+                        category={cat}
+                        position={index + 1}
+                        isSelected={selectedToMove.includes(cat)}
+                        onToggle={toggleSelectedToMove}
+                      />
+                    ))}
+                  </ol>
+                </SortableContext>
+              </DndContext>
 
               {/* Acciones pegadas abajo: con listas largas no hace falta volver a subir después de seleccionar.
                   -bottom-6/-mb-6 compensan el p-6 del contenedor del modal para que la lista no asome por debajo. */}
