@@ -8,7 +8,8 @@ import { Trash2, Edit, ShoppingCart, ExternalLink, Copy, Check, Wallet, MessageC
 // Productos por página. Son múltiplos de las columnas de cada vista (grande: 1-4, compacta: 2-6)
 // para que la última fila de cada página quede completa.
 const PAGE_SIZE = { grid: 12, compact: 24 };
-const MAX_VISIBLE_CATEGORY_PILLS = 10;
+// Pastillas de categoría visibles sin tocar "+N más" (se muestran en el orden que eligió el vendedor)
+export const MAX_VISIBLE_CATEGORY_PILLS = 10;
 // Valor del filtro "Sin categoría". Un Symbol no puede chocar con ningún nombre de categoría que cargue el vendedor.
 const UNCATEGORIZED = Symbol('sin-categoria');
 

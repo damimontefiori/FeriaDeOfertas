@@ -33,7 +33,7 @@ npm run preview
 |---|---|
 | Rutas, Dashboard del vendedor, cáscara del modal de configuración y su pestaña "Datos" | `src/App.jsx` (componente `Dashboard`) |
 | Pestaña "Personalizar": logo, tema, vista inicial del catálogo, botón Comprar | `src/components/ShopCustomization.jsx` |
-| Pestaña "Categorías": alta, edición, borrado, sugerencia con IA, límite `MAX_CATEGORIES` | `src/components/CategoryManager.jsx` |
+| Pestaña "Categorías": alta, edición, borrado, orden (modo "Ordenar"), sugerencia con IA, límite `MAX_CATEGORIES` | `src/components/CategoryManager.jsx` |
 | Catálogo: vistas grande/compacta, paginación (`PAGE_SIZE`), filtros, orden, modales de detalle / compra / venta / lightbox, mensajes de WhatsApp, deep link a Mercado Pago | `src/components/ProductList.jsx` (la usan **dueño y público**, según la prop `isOwner`) |
 | Alta/edición de producto, llamada a `analyze-image` | `src/components/AddProduct.jsx` |
 | Onboarding / alta de tienda | `src/components/CreateShop.jsx` |
@@ -58,7 +58,7 @@ npm run preview
 - **Estilos:** solo clases de Tailwind inline, sin CSS propio (salvo `index.css`) y con `tailwind.config.js` sin extender. Los colores de marca van como valores arbitrarios: `#252D61` (azul marino, primario), `#5A99CB` (azul), `#75D2C1` (menta). Los inputs llevan `text-base` para evitar el zoom automático de iOS. Modales con `fixed inset-0 bg-black/50|60 ... z-50`.
 - **Iconos:** `lucide-react`.
 - **Commits:** Conventional Commits en minúscula y en español: `feat: …`, `fix: …`, `style: …`, `refactor: …`, `chore: …`, `docs: …`.
-- **Versión:** la fuente de verdad es `version` en `package.json` (actual `0.6.0-beta`; actualizala con `npm version <x> --no-git-tag-version` para que también cambie `package-lock.json`). `vite.config.js` la inyecta como `import.meta.env.VITE_APP_VERSION`, pisando el `.env`, y se muestra en el pie de la app (`v0.6.0-beta`). **Subí la versión en cada entrega que se despliega** (funcionalidad nueva → minor, ajuste o fix → patch) y actualizá "Versión actual" en `SETUP_GUIDE.md`: el usuario la verifica en el pie de producción.
+- **Versión:** la fuente de verdad es `version` en `package.json` (actual `0.7.0-beta`; actualizala con `npm version <x> --no-git-tag-version` para que también cambie `package-lock.json`). `vite.config.js` la inyecta como `import.meta.env.VITE_APP_VERSION`, pisando el `.env`, y se muestra en el pie de la app (`v0.7.0-beta`). **Subí la versión en cada entrega que se despliega** (funcionalidad nueva → minor, ajuste o fix → patch) y actualizá "Versión actual" en `SETUP_GUIDE.md`: el usuario la verifica en el pie de producción.
 - **Documentación:** si cambiás funcionalidad, modelo de datos o variables de entorno, actualizá `SETUP_GUIDE.md` en el mismo cambio.
 
 ## Invariantes del dominio (no romper)
@@ -70,7 +70,7 @@ npm run preview
 - **Precio:** se guarda como `number`. La UI lo muestra con separador de miles `.` y lo limpia (`replace(/\./g, '')`) antes de guardar.
 - **Validaciones de la tienda** (nombre de 4 a 20 caracteres, CBU de exactamente 22 dígitos si se carga, alias en mayúsculas) están **duplicadas** en `CreateShop.jsx` y en `handleSaveSettings` de `App.jsx`. Si cambiás una, cambiá la otra.
 - **`status` del producto:** `available` | `sold` en la práctica (`pending` e `inactive` existen en el modelo pero ninguna UI los asigna). `getShopProducts` excluye `inactive`. El público **no** ve los `sold`. El dueño los ve en gris y siempre al final de la lista.
-- **Categorías:** `shops.categories` es un `string[]` (máximo `MAX_CATEGORIES` = 30, nombres de hasta 30 caracteres, únicos sin importar mayúsculas), y el producto guarda el **nombre** en `category` (no hay IDs; `''` = sin categoría). Por eso:
+- **Categorías:** `shops.categories` es un `string[]` (máximo `MAX_CATEGORIES` = 30, nombres de hasta 30 caracteres, únicos sin importar mayúsculas), y el producto guarda el **nombre** en `category` (no hay IDs; `''` = sin categoría). **El orden del array es el que elige el vendedor** (modo "Ordenar" de `CategoryManager`) y se respeta en las pastillas del catálogo y en el selector del alta: no ordenes las categorías alfabéticamente ni por cantidad al mostrarlas. Por eso:
   - Borrar una categoría exige limpiar los productos (`clearCategoryFromProducts`).
   - Renombrar exige migrar los productos: usá `renameCategory`, que actualiza primero los productos y después la lista (conservando la posición). Ambas escriben en tandas de 500 (límite de `writeBatch`).
   - Cualquier categoría que venga de la IA se valida contra la lista de la tienda antes de aplicarla.

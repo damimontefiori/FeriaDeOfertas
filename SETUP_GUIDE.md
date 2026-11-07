@@ -2,7 +2,7 @@
 
 > Catálogo digital mobile-first para vendedores informales. El vendedor crea su tienda en segundos, sube una foto y la IA redacta título y descripción. El cierre de venta ocurre por WhatsApp + transferencia (Alias/CBU).
 
-Versión actual: `0.6.0-beta`
+Versión actual: `0.7.0-beta`
 
 ---
 
@@ -42,6 +42,7 @@ Versión actual: `0.6.0-beta`
     - **Vista inicial del catálogo:** grande o compacta.
     - **Botón "Comprar":** mostrar u ocultar. Oculto, el comprador solo ve "Preguntar por WhatsApp" (o "Consultar" en la vista compacta).
   - **Categorías:** hasta **30** por tienda (nombre de hasta 30 caracteres, sin duplicados ignorando mayúsculas). Alta, **edición en línea** (renombrar migra los productos de la categoría y conserva su posición; Enter guarda, Escape cancela), borrado con confirmación (avisa cuántos productos quedarán "Sin categoría") y **sugerencia por IA** cuando la tienda no tiene categorías.
+    - **Ordenar:** el orden de la lista es el que ven los compradores en las pastillas del catálogo (y el del selector del alta de producto). El botón "Ordenar" abre un modo con la lista numerada: se seleccionan una o varias categorías y se llevan **al principio** o **al final** (respetando el orden que tenían entre ellas), o se mueven de a una con las flechas. Pensado para cambios de temporada (ej. poner primero las de verano y mandar atrás las de invierno) o para destacar categorías como "Ofertas". Cada cambio se guarda al instante; "Deshacer cambios" vuelve al orden que había al tocar "Ordenar", y "Listo" sale del modo. Las categorías nuevas se agregan al final.
 - **Estado por defecto al crear un producto:** "Nuevo" si todos los productos disponibles de la tienda son nuevos; si no, el del último producto creado (recuerda la última opción elegida, en cualquier dispositivo). Tienda sin productos: "Usado". Al editar se respeta el estado del producto.
 - **Botón "atrás" del celular:** con el modal de configuración o el de alta/edición de producto abierto, "atrás" lo cierra en vez de salir del sitio (igual que en el catálogo, ver 2.2).
 - **Gestión de productos:** crear, editar, borrar, marcar **Vendido** (nota opcional del comprador + `soldAt`), volver a **Disponible** y compartir por WhatsApp. En la vista compacta, el botón "Gestionar" abre el detalle con todas estas acciones.
@@ -55,7 +56,7 @@ Versión actual: `0.6.0-beta`
   - **Vista compacta:** grilla 2→6 columnas, 24 productos por página. Card con foto, título, precio y un único botón ("Comprar", o "Consultar" si la tienda ocultó Comprar). Click en la card abre el detalle.
   - La vista inicial la elige la tienda; el comprador la cambia con el selector "Vista grande / Vista compacta".
   - **Paginación** con anterior/siguiente y números de página (con "…" si hay muchas); al cambiar de página se vuelve al inicio del catálogo. Cambiar filtro, orden o vista vuelve a la página 1.
-- **Filtro por categoría** (pills con contadores; con más de 10 categorías se muestran 10 y un botón "+N más"). Si hay productos con categoría y otros sin ella, aparece la pastilla **"Sin categoría"**: agrupa los que no tienen categoría o tienen una que ya no está en la lista de la tienda.
+- **Filtro por categoría** (pills con contadores, en el orden que eligió el vendedor; con más de 10 categorías se muestran las 10 primeras y un botón "+N más"). Si hay productos con categoría y otros sin ella, aparece la pastilla **"Sin categoría"**: agrupa los que no tienen categoría o tienen una que ya no está en la lista de la tienda.
 - **Orden:** Más recientes / Precio menor / Nuevos primero (esta última solo si la tienda tiene productos nuevos y usados). Los vendidos siempre quedan al final.
 - **Pastilla Nuevo/Usado:** se muestra en las cards y en el detalle, salvo que **todos** los productos disponibles sean nuevos (en ese caso no aporta nada y se oculta). Con al menos un usado se muestran todas. No requiere configuración.
 - **Detalle de producto (modal):** se abre desde la vista compacta o por deep link `/shop/:shopId/p/:productId` (se usa al compartir). Tiene las mismas acciones que la card: Comprar (si está habilitado), Preguntar y Compartir.
@@ -103,7 +104,7 @@ src/
     CreateShop.jsx        Onboarding / alta de tienda
     AddProduct.jsx        Modal alta+edición de producto y "Autocompletar con IA"
     ProductList.jsx       Catálogo: vistas grande/compacta, paginación, filtros, orden y modales de detalle/compra/venta
-    CategoryManager.jsx   Pestaña "Categorías": alta, edición, borrado y sugerencia con IA
+    CategoryManager.jsx   Pestaña "Categorías": alta, edición, borrado, orden y sugerencia con IA
     ShopCustomization.jsx Pestaña "Personalizar": logo, tema, vista inicial y botón Comprar
     SnowEffect.jsx        Decoración tema Navidad
     LeafEffect.jsx        Decoración tema Naturaleza
@@ -165,7 +166,7 @@ netlify/functions/
 | `logo` | string | key de R2 del logo (PNG). Ausente o `''` = sin logo |
 | `defaultView` | string | `grid` \| `compact`. Ausente = `grid` |
 | `showBuyButton` | boolean | Ausente = `true` (las tiendas creadas antes de v0.3 lo muestran) |
-| `categories` | string[] | máx. 30 |
+| `categories` | string[] | máx. 30. El orden del array es el orden en que se muestran |
 | `active` | boolean | |
 | `createdAt` / `updatedAt` | timestamp | |
 

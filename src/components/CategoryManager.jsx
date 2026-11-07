@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { getShopProducts, updateShopCategories, batchUpdateProductCategories, clearCategoryFromProducts, renameCategory } from '../services/db';
 import { useLogger } from '../context/LoggerContext';
-import { Plus, Tag, Wand2, Loader2, Trash2, Pencil, Check, X } from 'lucide-react';
+import { MAX_VISIBLE_CATEGORY_PILLS } from './ProductList';
+import { Plus, Tag, Wand2, Loader2, Trash2, Pencil, Check, X, ArrowUpDown, ChevronUp, ChevronDown, ArrowUpToLine, ArrowDownToLine, Undo2 } from 'lucide-react';
 
 export const MAX_CATEGORIES = 30;
 const MAX_CATEGORY_LENGTH = 30;
@@ -18,6 +19,10 @@ const CategoryManager = ({ shopData, onCategoriesChange, onProductsChanged }) =>
   const [deletingCategory, setDeletingCategory] = useState(null); // { name, count } para el popup de confirmación
   const [editingCategory, setEditingCategory] = useState(null); // { original, value }
   const [savingRename, setSavingRename] = useState(false);
+  const [reordering, setReordering] = useState(false); // modo "Ordenar"
+  const [orderAtStart, setOrderAtStart] = useState(null); // orden al entrar en "Ordenar", para "Deshacer cambios"
+  const [selectedToMove, setSelectedToMove] = useState([]);
+  const orderSaveSeqRef = useRef(0);
 
   const existsCategory = (name, except = null) =>
     categories.some(c => c !== except && c.toLowerCase() === name.toLowerCase());
@@ -112,6 +117,71 @@ const CategoryManager = ({ shopData, onCategoriesChange, onProductsChanged }) =>
     } finally {
       setDeletingCategory(null);
     }
+  };
+
+  // ---- Ordenar ----
+  // El orden de shops.categories es el que ven los compradores (pastillas del catálogo) y el del selector del alta.
+  // Cada movimiento se guarda al instante: primero se actualiza la pantalla y, si Firestore falla, se vuelve atrás.
+  const saveOrder = async (updated) => {
+    const previous = categories;
+    const seq = ++orderSaveSeqRef.current;
+    onCategoriesChange(updated);
+    try {
+      await updateShopCategories(shopData.id, updated);
+    } catch (err) {
+      addLog(`Error al ordenar categorías: ${err.message}`, 'error');
+      // Si hubo otro movimiento después, ese ya guarda el orden completo (incluye este): no se revierte
+      if (seq === orderSaveSeqRef.current) {
+        onCategoriesChange(previous);
+        alert('No se pudo guardar el orden. Revisá tu conexión e intentá de nuevo.');
+      }
+    }
+  };
+
+  const handleStartReorder = () => {
+    setEditingCategory(null);
+    setDeletingCategory(null);
+    setSelectedToMove([]);
+    setOrderAtStart(categories);
+    setReordering(true);
+  };
+
+  const sameOrder = (a, b) => a.length === b.length && a.every((cat, i) => cat === b[i]);
+  const orderChanged = reordering && orderAtStart !== null && !sameOrder(orderAtStart, categories);
+
+  const handleFinishReorder = () => {
+    if (orderChanged) addLog('Orden de categorías actualizado', 'success');
+    setReordering(false);
+    setSelectedToMove([]);
+    setOrderAtStart(null);
+  };
+
+  const toggleSelectedToMove = (name) => {
+    setSelectedToMove(prev => (prev.includes(name) ? prev.filter(c => c !== name) : [...prev, name]));
+  };
+
+  const moveCategory = (index, direction) => {
+    const target = index + direction;
+    if (target < 0 || target >= categories.length) return;
+    const updated = [...categories];
+    [updated[index], updated[target]] = [updated[target], updated[index]];
+    saveOrder(updated);
+  };
+
+  // Lleva las seleccionadas al principio o al final, respetando el orden que tenían entre ellas
+  const moveSelected = (toStart) => {
+    const selected = categories.filter(c => selectedToMove.includes(c));
+    if (selected.length === 0) return;
+    const rest = categories.filter(c => !selectedToMove.includes(c));
+    saveOrder(toStart ? [...selected, ...rest] : [...rest, ...selected]);
+    setSelectedToMove([]);
+  };
+
+  const handleUndoReorder = () => {
+    // En "Ordenar" no se puede agregar, borrar ni renombrar, pero por las dudas solo se restaura si son las mismas
+    if (!orderAtStart || orderAtStart.length !== categories.length || !orderAtStart.every(c => categories.includes(c))) return;
+    setSelectedToMove([]);
+    saveOrder(orderAtStart);
   };
 
   const handleSuggestCategories = async () => {
@@ -265,7 +335,123 @@ const CategoryManager = ({ shopData, onCategoriesChange, onProductsChanged }) =>
       {/* Lista de categorías */}
       {categories.length > 0 && (
         <div>
-          <label className="block text-sm font-bold text-[#252D61] mb-2">Categorías actuales</label>
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <label className="block text-sm font-bold text-[#252D61]">
+              {reordering ? 'Ordenar categorías' : 'Categorías actuales'}
+            </label>
+            {!reordering && categories.length > 1 && (
+              <button
+                type="button"
+                onClick={handleStartReorder}
+                className="text-sm font-bold text-[#5A99CB] hover:text-[#252D61] hover:bg-gray-100 px-2 py-1 rounded-md transition-colors flex items-center gap-1"
+              >
+                <ArrowUpDown size={16} /> Ordenar
+              </button>
+            )}
+          </div>
+
+          {reordering ? (
+            <>
+              <p className="text-xs text-gray-500 mb-3">
+                Tocá las que quieras mover (por ejemplo, las de la temporada) y llevalas al principio o al final, o movelas de a una con las flechas. Los compradores las ven en este orden. Cada cambio se guarda solo.
+                {categories.length > MAX_VISIBLE_CATEGORY_PILLS && ` En el catálogo se ven primero ${MAX_VISIBLE_CATEGORY_PILLS}; el resto, al tocar "más".`}
+              </p>
+              <ol className="space-y-2">
+                {categories.map((cat, index) => {
+                  const isSelected = selectedToMove.includes(cat);
+                  return (
+                    <li
+                      key={cat}
+                      className={`flex items-center gap-1 p-1 rounded-lg border transition-colors ${
+                        isSelected ? 'bg-[#5A99CB]/10 border-[#5A99CB]' : 'bg-gray-50 border-gray-200'
+                      }`}
+                    >
+                      <label className="flex items-center gap-2.5 flex-1 min-w-0 px-2 py-1.5 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleSelectedToMove(cat)}
+                          className="w-4 h-4 shrink-0 accent-[#252D61]"
+                        />
+                        <span className="text-xs font-bold text-gray-400 w-5 text-right shrink-0">{index + 1}</span>
+                        <span className="text-sm font-medium text-gray-700 truncate">{cat}</span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => moveCategory(index, -1)}
+                        disabled={index === 0}
+                        className="p-2 rounded-md text-gray-500 hover:bg-white hover:text-[#252D61] transition-colors disabled:text-gray-200 disabled:hover:bg-transparent"
+                        aria-label={`Subir ${cat}`}
+                        title="Subir"
+                      >
+                        <ChevronUp size={18} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveCategory(index, 1)}
+                        disabled={index === categories.length - 1}
+                        className="p-2 rounded-md text-gray-500 hover:bg-white hover:text-[#252D61] transition-colors disabled:text-gray-200 disabled:hover:bg-transparent"
+                        aria-label={`Bajar ${cat}`}
+                        title="Bajar"
+                      >
+                        <ChevronDown size={18} />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ol>
+
+              {/* Acciones pegadas abajo: con listas largas no hace falta volver a subir después de seleccionar.
+                  -bottom-6/-mb-6 compensan el p-6 del contenedor del modal para que la lista no asome por debajo. */}
+              <div className="sticky -bottom-6 -mx-6 -mb-6 px-6 pt-3 pb-6 mt-3 bg-white border-t border-gray-100 space-y-2">
+                {selectedToMove.length > 0 && (
+                  <>
+                    <div className="flex items-center justify-between text-xs text-gray-500">
+                      <span>{selectedToMove.length} seleccionada{selectedToMove.length > 1 ? 's' : ''}</span>
+                      <button type="button" onClick={() => setSelectedToMove([])} className="font-bold hover:text-gray-700">
+                        Quitar selección
+                      </button>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => moveSelected(true)}
+                        className="flex-1 py-2.5 bg-[#252D61] text-white rounded-lg font-bold hover:bg-[#1a214d] transition-colors text-sm flex items-center justify-center gap-1.5"
+                      >
+                        <ArrowUpToLine size={16} /> Al principio
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveSelected(false)}
+                        className="flex-1 py-2.5 bg-white text-[#252D61] border border-[#252D61] rounded-lg font-bold hover:bg-gray-50 transition-colors text-sm flex items-center justify-center gap-1.5"
+                      >
+                        <ArrowDownToLine size={16} /> Al final
+                      </button>
+                    </div>
+                  </>
+                )}
+                <div className="flex items-center gap-2">
+                  {orderChanged && (
+                    <button
+                      type="button"
+                      onClick={handleUndoReorder}
+                      className="text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 px-2 py-1.5 rounded-md transition-colors flex items-center gap-1"
+                    >
+                      <Undo2 size={16} /> Deshacer cambios
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleFinishReorder}
+                    className="ml-auto px-6 py-2 bg-gray-200 text-gray-700 rounded-lg font-bold hover:bg-gray-300 transition-colors text-sm"
+                  >
+                    Listo
+                  </button>
+                </div>
+              </div>
+            </>
+          ) : (
+          <>
           <div className="space-y-2">
             {categories.map(cat => (
               editingCategory?.original === cat ? (
@@ -332,7 +518,11 @@ const CategoryManager = ({ shopData, onCategoriesChange, onProductsChanged }) =>
               )
             ))}
           </div>
-          <p className="mt-2 text-xs text-gray-400">Al renombrar una categoría, sus productos se actualizan automáticamente.</p>
+          <p className="mt-2 text-xs text-gray-400">
+            Los compradores ven las categorías en este orden{categories.length > 1 ? ' (cambialo con "Ordenar")' : ''}. Al renombrar una categoría, sus productos se actualizan automáticamente.
+          </p>
+          </>
+          )}
         </div>
       )}
 
@@ -361,8 +551,8 @@ const CategoryManager = ({ shopData, onCategoriesChange, onProductsChanged }) =>
         </div>
       )}
 
-      {/* Agregar categoría */}
-      {categories.length < MAX_CATEGORIES && (
+      {/* Agregar categoría (oculto mientras se ordena) */}
+      {!reordering && categories.length < MAX_CATEGORIES && (
         <div>
           <label className="block text-sm font-bold text-[#252D61] mb-1.5">Agregar categoría</label>
           <div className="flex gap-2">
@@ -389,7 +579,7 @@ const CategoryManager = ({ shopData, onCategoriesChange, onProductsChanged }) =>
         </div>
       )}
 
-      {categories.length >= MAX_CATEGORIES && (
+      {!reordering && categories.length >= MAX_CATEGORIES && (
         <p className="text-xs text-orange-600 bg-orange-50 p-3 rounded border border-orange-100">
           Alcanzaste el máximo de {MAX_CATEGORIES} categorías. Eliminá alguna para agregar nuevas.
         </p>
